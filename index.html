@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Q8 Bid Finder: open government contracts for web, IT &amp; marketing firms</title>
+<meta name="description" content="Find open federal contract opportunities for websites, apps, IT and marketing services. Search, filter, and draft responses fast. By Q8 Marketing.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><span class="logo">Q8</span> Bid Finder</a>
+    <nav><a href="#bids">Open bids</a><a href="#how">How it works</a><a href="#pricing">Pricing</a><a class="btn sm" href="#bids">Search bids</a></nav>
+  </div>
+</header>
+
+<main id="top">
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">Government contracts, without the hunt</p>
+    <h1>Find and win government bids for <span class="grad">web, IT &amp; marketing</span> work.</h1>
+    <p class="lead">Q8 Bid Finder pulls open federal opportunities from official public sources every day, filters them down to the work you actually do, and helps you draft a response in minutes.</p>
+    <div class="cta"><a class="btn" href="#bids">Browse open bids</a><a class="btn ghost" href="#pricing">See plans</a></div>
+    <div class="stats">
+      <div><b id="stat-count">–</b><span>open bids tracked</span></div>
+      <div><b id="stat-featured">–</b><span>in web, IT &amp; marketing</span></div>
+      <div><b id="stat-week">–</b><span>due in the next 7 days</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="how" class="features wrap">
+  <div class="card"><h3>📡 Official sources only</h3><p>Opportunities come straight from SAM.gov's public data feed, refreshed daily. Every bid links to the official notice.</p></div>
+  <div class="card"><h3>🎯 Filtered to your trade</h3><p>Search by keyword, NAICS code, agency, deadline, and small-business set-aside. Websites, apps, IT and marketing are featured.</p></div>
+  <div class="card"><h3>✍️ Draft a response fast</h3><p>One click starts a response with the notice details filled in. AI-assisted drafting is coming next.</p></div>
+</section>
+
+<section id="bids" class="bids">
+  <div class="wrap">
+    <div class="sec-head">
+      <h2>Open bids</h2>
+      <p class="muted" id="meta">Loading…</p>
+    </div>
+    <form class="filters" id="filters" onsubmit="return false">
+      <input id="q" type="search" placeholder="Search title, agency, description…" aria-label="Keyword">
+      <select id="naics" aria-label="NAICS"><option value="">All NAICS</option></select>
+      <select id="agency" aria-label="Agency"><option value="">All agencies</option></select>
+      <select id="due" aria-label="Due date">
+        <option value="">Any deadline</option><option value="3">Due in 3 days</option><option value="7">Due in 7 days</option><option value="14">Due in 14 days</option><option value="30">Due in 30 days</option><option value="31+">More than 30 days out</option>
+      </select>
+      <select id="setaside" aria-label="Set-aside"><option value="">Any set-aside</option></select>
+      <label class="chk"><input type="checkbox" id="featured" checked> Web, IT &amp; marketing only</label>
+    </form>
+    <p class="muted small" id="count"></p>
+    <div id="list" class="list"></div>
+    <div class="more"><button class="btn ghost" id="more" hidden>Show more</button></div>
+  </div>
+</section>
+
+<section id="pricing" class="pricing wrap">
+  <div class="sec-head"><h2>Pricing</h2><p class="muted">Paid plans are coming soon. Browsing open bids is free during the beta.</p></div>
+  <div class="tiers">
+    <div class="tier"><h3>Free</h3><p class="price">$0</p><ul><li>Federal bid search</li><li>1 saved search</li><li>Weekly digest</li></ul><a class="btn ghost" href="#bids">Start searching</a></div>
+    <div class="tier"><span class="tag">Coming soon</span><h3>Starter</h3><p class="price">$29<small>/mo</small></p><ul><li>All federal + 1 state</li><li>Daily matches</li><li>3 AI bid summaries / mo</li></ul><a class="btn ghost" href="mailto:yisroel@q8marketing.design?subject=Q8%20Bid%20Finder%20Starter%20waitlist">Join the waitlist</a></div>
+    <div class="tier pop"><span class="tag">Coming soon</span><h3>Pro</h3><p class="price">$99<small>/mo</small></p><ul><li>All states, unlimited matches</li><li>5 AI draft responses / mo</li><li>Compliance checklist</li></ul><a class="btn" href="mailto:yisroel@q8marketing.design?subject=Q8%20Bid%20Finder%20Pro%20waitlist">Join the waitlist</a></div>
+    <div class="tier"><span class="tag">Coming soon</span><h3>Done-with-you</h3><p class="price">From $499<small>/bid</small></p><ul><li>Our team reviews and polishes your draft</li><li>You still sign and submit</li></ul><a class="btn ghost" href="mailto:yisroel@q8marketing.design?subject=Q8%20Bid%20Finder%20Done-with-you">Ask about it</a></div>
+  </div>
+</section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <p>© <span id="yr"></span> Q8 Marketing · <a href="https://q8marketing.design">q8marketing.design</a></p>
+  <p class="muted small">Data: SAM.gov Contract Opportunities public data extract. Q8 Bid Finder is not affiliated with the U.S. Government. Always confirm details on the official notice before responding.</p>
+</div></footer>
+<script src="assets/app.js"></script>
+</body>
+</html>
