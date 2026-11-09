@@ -1,0 +1,18 @@
+{
+  "notes": "A verification attaches only when feedRawContains is still in the current feed text. parsedPdf stays false unless a person edits this file. The fetcher never parses solicitation PDFs and does not treat acceptAsControlling as true for method source-research-note.",
+  "verifications": [
+    {
+      "id": "suffolk-2026-25-rss-vs-reported-rfp",
+      "source": "bonfire-suffolkcountyny",
+      "org": "suffolkcountyny",
+      "solicitation": "2026-25",
+      "feedRawContains": "Dec 04, 2026 12:00 AM EST",
+      "reportedDeadlineRaw": "3:30 PM",
+      "method": "source-research-note",
+      "parsedPdf": false,
+      "acceptAsControlling": false,
+      "documentRef": "Reported from the official RFP page 1 / section I.7 on 2026-11-08. This pipeline did not fetch or parse that PDF.",
+      "note": "The Bonfire RSS close text was 12:00 AM EST. Source research reported the RFP deadline as 3:30 PM the same day. The RSS time stays in due until a person records a checked deadline."
+    }
+  ]
+}

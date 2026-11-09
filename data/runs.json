@@ -1,0 +1,165 @@
+{
+  "kind": "live",
+  "demo": false,
+  "runs": [
+    {
+      "id": "2026-11-09T01:40:35Z",
+      "startedAt": "2026-11-09T01:40:35Z",
+      "finishedAt": "2026-11-09T01:41:00Z",
+      "status": "success",
+      "dedup": {
+        "input": 415,
+        "output": 201,
+        "clustersMerged": 57,
+        "addendaAttached": 214
+      },
+      "preservedSources": [],
+      "verificationNotes": [
+        "verification suffolk-2026-25-rss-vs-reported-rfp attached to bonfire-suffolkcountyny:261802; parsedPdf=false; controlling=feed"
+      ],
+      "verificationFileError": null,
+      "sources": [
+        {
+          "id": "sam-public-csv",
+          "status": "working",
+          "matched": 412,
+          "scanned": 70527,
+          "error": null,
+          "message": "Read 412 open matching notices from 70527 extract rows."
+        },
+        {
+          "id": "sam-opportunities-api",
+          "status": "config-required",
+          "matched": null,
+          "scanned": null,
+          "error": null,
+          "message": "SAM.gov Get Opportunities API is not configured (no API key). Set SAM_API_KEY to a key from your own SAM.gov Account Details page. No records were fetched or invented."
+        },
+        {
+          "id": "bonfire-suffolkcountyny",
+          "status": "working",
+          "matched": 2,
+          "scanned": 3,
+          "error": null,
+          "message": "Read 3 open RSS items from 1 Bonfire organization; 2 matched website, app, software, design, or marketing."
+        },
+        {
+          "id": "nyc-crol",
+          "status": "working",
+          "matched": 1,
+          "scanned": 198,
+          "error": null,
+          "message": "City Record returned 198 solicitation rows with a due date on or after 2026-11-07. 1 matched website, app, software, design, or marketing. Dataset solicitation count: 45318."
+        }
+      ],
+      "opportunityCount": 201,
+      "notes": ""
+    },
+    {
+      "id": "2026-11-09T01:38:44Z",
+      "startedAt": "2026-11-09T01:38:44Z",
+      "finishedAt": "2026-11-09T01:38:52Z",
+      "status": "success",
+      "dedup": {
+        "input": 416,
+        "output": 202,
+        "clustersMerged": 57,
+        "addendaAttached": 214
+      },
+      "preservedSources": [],
+      "verificationNotes": [
+        "verification suffolk-2026-25-rss-vs-reported-rfp attached to bonfire-suffolkcountyny:261802; parsedPdf=false; controlling=feed"
+      ],
+      "verificationFileError": null,
+      "sources": [
+        {
+          "id": "sam-public-csv",
+          "status": "working",
+          "matched": 412,
+          "scanned": 70527,
+          "error": null,
+          "message": "Read 412 open matching notices from 70527 extract rows."
+        },
+        {
+          "id": "sam-opportunities-api",
+          "status": "config-required",
+          "matched": null,
+          "scanned": null,
+          "error": null,
+          "message": "SAM.gov Get Opportunities API is not configured (no API key). Set SAM_API_KEY to a key from your own SAM.gov Account Details page. No records were fetched or invented."
+        },
+        {
+          "id": "bonfire-suffolkcountyny",
+          "status": "working",
+          "matched": 2,
+          "scanned": 3,
+          "error": null,
+          "message": "Read 3 open RSS items from 1 Bonfire organization; 2 matched website, app, software, design, or marketing."
+        },
+        {
+          "id": "nyc-crol",
+          "status": "working",
+          "matched": 2,
+          "scanned": 198,
+          "error": null,
+          "message": "City Record returned 198 solicitation rows with a due date on or after 2026-11-07. 2 matched website, app, software, design, or marketing. Dataset solicitation count: 45318."
+        }
+      ],
+      "opportunityCount": 202,
+      "notes": ""
+    },
+    {
+      "id": "2026-11-09T01:36:00Z",
+      "startedAt": "2026-11-09T01:36:00Z",
+      "finishedAt": "2026-11-09T01:36:08Z",
+      "status": "success",
+      "dedup": {
+        "input": 439,
+        "output": 224,
+        "clustersMerged": 58,
+        "addendaAttached": 215
+      },
+      "preservedSources": [],
+      "verificationNotes": [
+        "verification suffolk-2026-25-rss-vs-reported-rfp attached to bonfire-suffolkcountyny:261802; parsedPdf=false; controlling=feed"
+      ],
+      "verificationFileError": null,
+      "sources": [
+        {
+          "id": "sam-public-csv",
+          "status": "working",
+          "matched": 412,
+          "scanned": 70527,
+          "error": null,
+          "message": "Read 412 open matching notices from 70527 extract rows."
+        },
+        {
+          "id": "sam-opportunities-api",
+          "status": "config-required",
+          "matched": null,
+          "scanned": null,
+          "error": null,
+          "message": "SAM.gov Get Opportunities API is not configured (no API key). Set SAM_API_KEY to a key from your own SAM.gov Account Details page. No records were fetched or invented."
+        },
+        {
+          "id": "bonfire-suffolkcountyny",
+          "status": "working",
+          "matched": 2,
+          "scanned": 3,
+          "error": null,
+          "message": "Read 3 open RSS items from 1 Bonfire organization; 2 matched website, app, software, design, or marketing."
+        },
+        {
+          "id": "nyc-crol",
+          "status": "working",
+          "matched": 25,
+          "scanned": 198,
+          "error": null,
+          "message": "City Record returned 198 solicitation rows with a due date on or after 2026-11-07. 25 matched website, app, software, design, or marketing. Dataset solicitation count: 45318."
+        }
+      ],
+      "opportunityCount": 224,
+      "notes": "No earlier automated run is stored. .github/workflows was not in the repository, so the scheduled refresh had not been running."
+    }
+  ]
+}

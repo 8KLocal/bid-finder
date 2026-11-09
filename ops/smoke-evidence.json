@@ -1,0 +1,90 @@
+{
+  "kind": "verification",
+  "demo": false,
+  "verifiedAt": "2026-11-09T01:41:00Z",
+  "signedUrlStored": false,
+  "recordsInvented": false,
+  "samPublicCsv": {
+    "status": "working",
+    "message": "Read 412 open matching notices from 70527 extract rows.",
+    "error": null,
+    "detail": {
+      "docsUrl": "https://sam.gov/data-services/Contract%20Opportunities/datagov?privacy=Public",
+      "feedUrl": "https://sam.gov/data-services/Contract%20Opportunities/datagov?privacy=Public",
+      "rangeProbe": {
+        "status": 206,
+        "finalHost": "falextracts.s3.amazonaws.com",
+        "contentRange": "bytes 0-800/216496724",
+        "lastModified": "Sun, 08 Nov 2026 04:30:19 GMT",
+        "privacy": "Public",
+        "contentLength": "801",
+        "startsWithNoticeId": true,
+        "signedUrlStored": false
+      },
+      "status": 200,
+      "finalHost": "falextracts.s3.amazonaws.com",
+      "lastModified": "Sun, 08 Nov 2026 04:30:19 GMT",
+      "privacy": "Public",
+      "contentLength": "216496724",
+      "feedUpdated": "2026-11-07",
+      "signedUrlStored": false,
+      "via": "primary",
+      "mode": "network",
+      "scanned": 70527,
+      "matched": 412,
+      "skippedNaics": 65416,
+      "skippedInactive": 0,
+      "skippedType": 3326,
+      "skippedDeadline": 1373
+    }
+  },
+  "samOpportunitiesApi": {
+    "status": "config-required",
+    "message": "SAM.gov Get Opportunities API is not configured (no API key). Set SAM_API_KEY to a key from your own SAM.gov Account Details page. No records were fetched or invented.",
+    "records": 0,
+    "detail": {
+      "docsUrl": "https://open.gsa.gov/api/get-opportunities-public-api/",
+      "endpoint": "https://api.sam.gov/opportunities/v2/search",
+      "calls": 0,
+      "unconfiguredProbe": {
+        "httpStatus": 404,
+        "error": "HTTP 404 from api.sam.gov",
+        "recordsInvented": false
+      }
+    }
+  },
+  "bonfireSuffolk": {
+    "status": "working",
+    "message": "Read 3 open RSS items from 1 Bonfire organization; 2 matched website, app, software, design, or marketing.",
+    "detail": {
+      "scanned": 3,
+      "matched": 2,
+      "orgs": [
+        "suffolkcountyny"
+      ]
+    }
+  },
+  "nycCrol": {
+    "status": "working",
+    "message": "City Record returned 198 solicitation rows with a due date on or after 2026-11-07. 1 matched website, app, software, design, or marketing. Dataset solicitation count: 45318.",
+    "detail": {
+      "datasetUrl": "https://data.cityofnewyork.us/City-Government/City-Record-Online/dg92-zbpx",
+      "resource": "https://data.cityofnewyork.us/resource/dg92-zbpx.json",
+      "passportBulk": false,
+      "solicitationRows": 45318,
+      "scanned": 198,
+      "matched": 1,
+      "skippedCategory": 197,
+      "skippedClosed": 0,
+      "skippedId": 0,
+      "skippedPlaceholder": 0
+    }
+  },
+  "dedup": {
+    "input": 415,
+    "output": 201,
+    "clustersMerged": 57,
+    "addendaAttached": 214
+  },
+  "opportunityCount": 201
+}
