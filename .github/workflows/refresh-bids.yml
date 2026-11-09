@@ -1,0 +1,48 @@
+name: Refresh bids
+# Schedule and workflow_dispatch run only after this file is on the default branch.
+# The public SAM CSV, Suffolk Bonfire RSS, and NYC City Record feed need no secrets.
+# Optional: repository secrets SAM_API_KEY and SAM_API_ENABLE ("1") for the keyed SAM API.
+# Do not put keys in the repository. This job does not deploy the site; GitHub Pages
+# publishes the default branch on its own after a commit lands there.
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: refresh-bids
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test parsers, dedup, deadlines, and errors
+        run: python -m unittest discover -s tests -v
+      - name: Fetch public opportunity feeds
+        id: fetch
+        continue-on-error: true
+        env:
+          SAM_API_KEY: ${{ secrets.SAM_API_KEY }}
+          SAM_API_ENABLE: ${{ secrets.SAM_API_ENABLE }}
+        run: python scripts/fetch_bids.py
+      - name: Commit data updates
+        if: always()
+        run: |
+          git config user.name "bid-finder-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/bids.json data/sources.json data/runs.json
+          if git diff --cached --quiet; then
+            echo "No data changes"
+          else
+            git commit -m "Refresh bids $(date -u +%F)"
+            git push
+          fi
+      - name: Fail the job if ingest did not fully succeed
+        if: steps.fetch.outcome == 'failure'
+        run: exit 1

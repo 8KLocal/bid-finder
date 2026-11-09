@@ -1,0 +1,9 @@
+NoticeId,Title,Sol#,Department/Ind.Agency,Sub-Tier,Office,PostedDate,Type,ResponseDeadLine,NaicsCode,Active,SetASide,SetASideCode,PopCity,PopState,PrimaryContactEmail,Description
+aaa111,Website support services,SOL-100,Department of Example,Example Office,Buying Office,2026-11-01,Solicitation,2026-12-01T15:00:00-05:00,541511,Yes,No Set Aside Used,NONE,Hampton,VA,coc@example.gov,Build a small public website.
+bbb222,Earlier copy of the same solicitation,SOL-100,Department of Example,Example Office,Buying Office,2026-10-01,Presolicitation,2026-11-20T15:00:00-05:00,541511,Yes,No Set Aside Used,NONE,Hampton,VA,coc@example.gov,Earlier notice.
+ccc333,Graphic design retainer,SOL-200,Department of Example,Example Office,Buying Office,2026-11-02,Solicitation,2026-12-15T18:00:00-05:00,541430,Yes,Total Small Business Set-Aside (FAR 19.5),SBA,Austin,TX,art@example.gov,Graphic design for print and web.
+ddd444,Awarded already,SOL-300,Department of Example,Example Office,Buying Office,2026-11-02,Award Notice,2026-12-15T18:00:00-05:00,541511,Yes,,,Austin,TX,,Awarded.
+eee555,Past due programming,SOL-400,Department of Example,Example Office,Buying Office,2026-01-01,Solicitation,2020-01-01T00:00:00Z,541511,Yes,,,Austin,TX,,Old.
+fff666,Road paving,SOL-500,Department of Example,Example Office,Buying Office,2026-11-02,Solicitation,2026-12-15T18:00:00-05:00,237310,Yes,,,Austin,TX,,Not our NAICS.
+ggg777,Inactive programming,SOL-600,Department of Example,Example Office,Buying Office,2026-11-02,Solicitation,2026-12-15T18:00:00-05:00,541511,No,,,Austin,TX,,Inactive.
+hhh888,Marketing help,SOL-700,Other Agency,Other,Office,2026-11-03,Sources Sought,2026-12-20T12:00:00-05:00,541613,Yes,,,Denver,CO,,Marketing consulting.
