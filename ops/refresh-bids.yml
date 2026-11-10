@@ -1,3 +1,6 @@
+# Same daily job as .github/workflows/refresh-bids.yml.
+# GitHub Actions reads the copy under .github/workflows. This file is the
+# readable source if a checkout cannot update workflow files.
 name: Refresh bids
 on:
   schedule:
