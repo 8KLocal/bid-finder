@@ -1,0 +1,10 @@
+{
+  "name": "its-workplace-bid-listings",
+  "private": true,
+  "type": "module",
+  "description": "Public U.S. contract listings for It's Workplace (ITS WORKPLACE INC).",
+  "scripts": {
+    "start": "node scripts/dev-server.mjs",
+    "test": "node --test --test-concurrency=1 tests/server.test.mjs && python3 -m unittest tests.test_fetch_bids"
+  }
+}
