@@ -111,12 +111,13 @@ async function waitFor(expression, label) {
   die("timed out: " + label);
 }
 
-await waitFor("document.querySelectorAll('article.bid').length > 0", "bids");
+await waitFor("document.querySelectorAll('article.bid').length > 0 && Number(document.querySelector('#stat-count').textContent.replace(/,/g,'')) > 0", "bids");
 const desktop = await evalJs(`(() => {
   const text = document.body.innerText;
   return {
     title: document.title,
     bids: document.querySelectorAll("article.bid").length,
+    total: Number(document.querySelector("#stat-count").textContent.replace(/,/g, "")),
     heading: document.querySelector("#bids h2").textContent,
     count: document.querySelector("#count").textContent,
     brand: document.querySelector(".brand-name").innerText,
@@ -125,6 +126,7 @@ const desktop = await evalJs(`(() => {
     fill: document.querySelector("[data-fill]")?.textContent.trim() || "",
     claim: document.querySelector("[data-claim]")?.textContent.trim() || "",
     source: !!document.querySelector("#source"),
+    signup: !!document.querySelector("#signup"),
     coreChecked: document.querySelector("#core").checked,
   };
 })()`);
@@ -133,7 +135,8 @@ if (desktop.hasOldBrand) die("old brand is still in the page");
 if (!desktop.title.includes("It's Workplace")) die("title");
 if (desktop.heading !== "All bids") die("missing All bids heading");
 if (desktop.coreChecked) die("software filter should be off so All bids is the full list");
-if (desktop.bids < 20) die("expected the full matching list, saw " + desktop.bids);
+if (desktop.total < 20) die("expected the full matching list, saw " + desktop.total);
+if (!desktop.signup) die("missing signup");
 if (!desktop.fill.includes("Fill this out with AI")) die("missing fill action");
 if (desktop.claim !== "Claim this bid") die("missing claim action: " + desktop.claim);
 if (!desktop.source) die("missing source filter");
@@ -141,22 +144,22 @@ if (!desktop.checkout.some((label) => label.includes("Continue to checkout"))) d
 
 await evalJs(`document.querySelector("#q").value = "software"; document.querySelector("#q").dispatchEvent(new Event("input", { bubbles: true }));`);
 await waitFor("document.querySelector('#count').textContent.includes('of')", "filter count");
-const filtered = await evalJs(`document.querySelectorAll("article.bid").length`);
+const filtered = await evalJs(`Number((document.querySelector("#count").textContent.match(/\\d[\\d,]*/) || ["0"])[0].replace(/,/g, ""))`);
 console.log("filtered software", filtered);
-if (!(filtered > 0 && filtered < desktop.bids)) die("keyword filter did not narrow the list");
+if (!(filtered > 0 && filtered < desktop.total)) die("keyword filter did not narrow the list");
 
 await evalJs(`document.querySelector("#clear").click()`);
-await waitFor(`document.querySelectorAll("article.bid").length === ${desktop.bids}`, "clear filters");
+await waitFor(`!document.querySelector("#count").textContent.includes("of")`, "clear filters");
 
 await evalJs(`document.querySelector("#source").value = "RFPMart"; document.querySelector("#source").dispatchEvent(new Event("input", { bubbles: true }));`);
-await waitFor(`document.querySelectorAll("article.bid").length > 0 && document.querySelector("#count").textContent.includes("of")`, "rfp source");
+await waitFor(`document.querySelector("#count").textContent.includes("of") && document.body.innerText.includes("RFPMart")`, "rfp source");
 const rfpShown = await evalJs(`document.querySelectorAll("article.bid").length`);
 console.log("rfpmart filter", rfpShown);
 if (rfpShown < 1) die("RFPMart source filter showed no bids");
 const rfpCard = await evalJs(`document.querySelector("article.bid").innerText`);
 if (!rfpCard.includes("RFPMart")) die("RFPMart card missing source");
 await evalJs(`document.querySelector("#clear").click()`);
-await waitFor(`document.querySelectorAll("article.bid").length === ${desktop.bids}`, "clear source");
+await waitFor(`!document.querySelector("#count").textContent.includes("of")`, "clear source");
 
 await evalJs(`document.querySelector("[data-claim]").click()`);
 await waitFor("document.querySelector('#draft-dialog').open && !document.querySelector('#draft-editor').hidden && document.querySelector('#draft-text').value.length > 80", "claim draft");
@@ -177,6 +180,11 @@ if (!/NOT SUBMITTED|not been submitted|Nothing was submitted|Nothing is submitte
   die("draft does not say it is unsubmitted");
 }
 await evalJs(`document.querySelector("#draft-dialog").close()`);
+await evalJs(`document.querySelector("#alerts").scrollIntoView({ behavior: "instant", block: "start" })`);
+await shot("desktop-signup.png");
+await evalJs(`document.querySelector("#signup-email").value = "ada@example.com"; document.querySelector("#signup-company").value = "Ada Contracting";`);
+await shot("desktop-signup-filled.png");
+await evalJs(`document.querySelector("#bids").scrollIntoView({ behavior: "instant", block: "start" })`);
 await waitFor(`document.querySelector("[data-claim]").textContent.includes("Claimed")`, "claimed label");
 
 await evalJs(`document.querySelector("[data-fill]").click()`);

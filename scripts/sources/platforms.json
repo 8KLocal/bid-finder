@@ -1,0 +1,13 @@
+[
+  {"id":"bonfire","name":"Bonfire / Euna","url":"https://harriscountytx.bonfirehub.com/opportunities/rss","robots":"https://harriscountytx.bonfirehub.com/robots.txt","note":"Per-agency public RSS exists, but only if that host's robots.txt allows it."},
+  {"id":"bidnet","name":"BidNet Direct","url":"https://www.bidnetdirect.com/solicitations/open-bids","robots":"https://www.bidnetdirect.com/robots.txt"},
+  {"id":"demandstar","name":"DemandStar","url":"https://www.demandstar.com/","robots":"https://www.demandstar.com/robots.txt"},
+  {"id":"planetbids","name":"PlanetBids","url":"https://www.planetbids.com/","robots":"https://www.planetbids.com/robots.txt"},
+  {"id":"opengov","name":"OpenGov Procurement","url":"https://procurement.opengov.com/","robots":"https://procurement.opengov.com/robots.txt"},
+  {"id":"ionwave","name":"IonWave","url":"https://www.ionwave.net/","robots":"https://www.ionwave.net/robots.txt"},
+  {"id":"buyboard","name":"BuyBoard","url":"https://www.buyboard.com/","robots":"https://www.buyboard.com/robots.txt"},
+  {"id":"periscope","name":"Periscope Holdings","url":"https://www.periscopeholdings.com/","robots":"https://www.periscopeholdings.com/robots.txt"},
+  {"id":"jaggaer","name":"Jaggaer","url":"https://www.jaggaer.com/","robots":"https://www.jaggaer.com/robots.txt"},
+  {"id":"ariba","name":"SAP Ariba","url":"https://service.ariba.com/","robots":"https://service.ariba.com/robots.txt"},
+  {"id":"civicplus","name":"CivicPlus","url":"https://www.civicplus.com/","robots":"https://www.civicplus.com/robots.txt"}
+]

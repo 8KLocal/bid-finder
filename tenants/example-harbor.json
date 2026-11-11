@@ -1,0 +1,33 @@
+{
+  "slug": "example-harbor",
+  "brand": "Harbor Bid Desk (example)",
+  "legalName": "EXAMPLE TENANT — not a real customer",
+  "tagline": "Example white-label bid bot. Not a live customer.",
+  "logo": "",
+  "colors": {"navy": "#123524", "red": "#b45309", "blue": "#1d4e3a", "paper": "#f6f3ea"},
+  "emailFrom": "Harbor Bid Desk",
+  "replyTo": "hello@example.com",
+  "address": "Example Tenant, 1 Harbor Street, Suite 100, Portland, ME 04101",
+  "offshoreLine": "Replace this line with the customer's own disclosure. This file is an example.",
+  "siteUrl": "https://example.com",
+  "listingsUrl": "https://8klocal.github.io/bid-finder/?tenant=example-harbor",
+  "domains": ["harbor.example.com"],
+  "apiBase": "",
+  "bidPriceCents": 2000,
+  "stripePaymentLink": "",
+  "defaults": {
+    "keywords": ["construction"],
+    "naics": ["236220"],
+    "states": ["ME"],
+    "sources": ["SAM.gov"]
+  },
+  "persona": "EXAMPLE PERSONA. Speak as Harbor Bid Desk, a fictional firm. This is not a real customer.",
+  "mail": {
+    "firstClassCents": 78,
+    "certifiedCents": 500,
+    "returnReceiptCents": 250,
+    "perPageCents": 15,
+    "serviceFeeCents": 500
+  },
+  "example": true
+}

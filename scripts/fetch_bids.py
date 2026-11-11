@@ -95,7 +95,36 @@ def is_core(naics):
 
 
 def is_related_code(naics):
-    return naics.startswith(RELATED_PREFIXES) or naics in {"541990", "541430"}
+    return bool(naics) and (naics.startswith(RELATED_PREFIXES) or naics in {"541990", "541430"})
+
+
+# Place-of-performance state on the public extract. Full names show up often.
+USPS = {
+    "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS",
+    "KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC",
+    "ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
+    "PR","VI","GU","AS","MP",
+}
+STATE_NAMES = {
+    "ALABAMA":"AL","ALASKA":"AK","ARIZONA":"AZ","ARKANSAS":"AR","CALIFORNIA":"CA","COLORADO":"CO",
+    "CONNECTICUT":"CT","DELAWARE":"DE","DISTRICT OF COLUMBIA":"DC","FLORIDA":"FL","GEORGIA":"GA",
+    "HAWAII":"HI","IDAHO":"ID","ILLINOIS":"IL","INDIANA":"IN","IOWA":"IA","KANSAS":"KS",
+    "KENTUCKY":"KY","LOUISIANA":"LA","MAINE":"ME","MARYLAND":"MD","MASSACHUSETTS":"MA",
+    "MICHIGAN":"MI","MINNESOTA":"MN","MISSISSIPPI":"MS","MISSOURI":"MO","MONTANA":"MT",
+    "NEBRASKA":"NE","NEVADA":"NV","NEW HAMPSHIRE":"NH","NEW JERSEY":"NJ","NEW MEXICO":"NM",
+    "NEW YORK":"NY","NORTH CAROLINA":"NC","NORTH DAKOTA":"ND","OHIO":"OH","OKLAHOMA":"OK",
+    "OREGON":"OR","PENNSYLVANIA":"PA","RHODE ISLAND":"RI","SOUTH CAROLINA":"SC","SOUTH DAKOTA":"SD",
+    "TENNESSEE":"TN","TEXAS":"TX","UTAH":"UT","VERMONT":"VT","VIRGINIA":"VA","WASHINGTON":"WA",
+    "WEST VIRGINIA":"WV","WISCONSIN":"WI","WYOMING":"WY","PUERTO RICO":"PR","GUAM":"GU",
+    "VIRGIN ISLANDS":"VI","AMERICAN SAMOA":"AS","NORTHERN MARIANA ISLANDS":"MP",
+}
+
+
+def state_code(raw):
+    text = clean(raw).upper()
+    if text in USPS:
+        return text
+    return STATE_NAMES.get(text, "")
 
 
 def digital(text):
@@ -116,10 +145,13 @@ def parse_due(raw):
 
 
 def consider(row, now):
-    """Return a bid dict, or None when the notice is out of scope."""
+    """Return a bid dict, or None when the notice is out of scope.
+
+    Open, active, United States notices are kept for every NAICS code. Software
+    and web codes stay marked core/related so the site can still filter them.
+    Expired, foreign, inactive, and award-style rows are dropped.
+    """
     naics = (row.get("NaicsCode") or "").strip()
-    if not naics:
-        return None
     if not is_usa(row.get("PopCountry")):
         return None
     if (row.get("Active") or "").strip() != "Yes":
@@ -130,16 +162,13 @@ def consider(row, now):
     if due is None or due < now:
         return None
     title = clean(row.get("Title"), 220)
-    summary = clean(row.get("Description"), 600)
-    # Related service codes have to say the digital work in the title. A passing
-    # "IT IS" or "see the website" in a long description is not enough.
-    core = is_core(naics)
-    if core:
+    summary = clean(row.get("Description"), 320)
+    if is_core(naics):
         scope = "core"
     elif is_related_code(naics) and digital(title):
         scope = "related"
     else:
-        return None
+        scope = "general"
     text = f"{title} {summary}"
     nid = (row.get("NoticeId") or "").strip()
     if not nid:
@@ -148,7 +177,10 @@ def consider(row, now):
     if not set_aside or set_aside.lower().startswith("no set"):
         set_aside = "None"
     place = ", ".join(x for x in [clean(row.get("PopCity")), clean(row.get("PopState"))] if x)
-    posted = (row.get("PostedDate") or "").strip()
+    posted = (row.get("PostedDate") or "").strip()[:10]
+    deadline = (row.get("ResponseDeadLine") or "").strip()
+    link = f"https://sam.gov/opp/{nid}/view"
+    state = state_code(row.get("PopState"))
     return {
         "id": nid,
         "title": title,
@@ -156,8 +188,9 @@ def consider(row, now):
         "agency": agency_name(row.get("Department/Ind.Agency")),
         "subTier": agency_name(row.get("Sub-Tier")),
         "office": clean(row.get("Office")),
-        "posted": posted[:10],
-        "due": (row.get("ResponseDeadLine") or "").strip(),
+        "posted": posted,
+        "due": deadline,
+        "deadline": deadline,
         "type": clean(row.get("Type")),
         "naics": naics,
         "naicsLabel": CORE.get(naics, ""),
@@ -167,13 +200,40 @@ def consider(row, now):
         "setAside": set_aside,
         "setAsideCode": clean(row.get("SetASideCode")),
         "place": place,
+        "state": state,
         "contact": clean(row.get("PrimaryContactEmail")),
-        "link": f"https://sam.gov/opp/{nid}/view",
+        "link": link,
+        "url": link,
         "summary": summary,
+        "description": summary,
+        "source": "SAM.gov",
     }
 
 
-def write_bids(rows, now, dest="data/bids.json"):
+def cap_rows(rows, limit):
+    """Keep every row under the limit. Above it, take the nearest deadlines
+    round-robin by state so one state cannot fill the file."""
+    rows = [b for b in rows if b]
+    if limit <= 0 or len(rows) <= limit:
+        return rows
+    buckets = {}
+    for bid in sorted(rows, key=lambda b: b.get("due") or "9999"):
+        buckets.setdefault(bid.get("state") or "", []).append(bid)
+    keys = sorted(buckets)
+    out = []
+    while len(out) < limit and any(buckets.values()):
+        for key in keys:
+            bucket = buckets[key]
+            if not bucket:
+                continue
+            out.append(bucket.pop(0))
+            if len(out) >= limit:
+                break
+    out.sort(key=lambda b: b.get("due") or "9999")
+    return out
+
+
+def write_bids(rows, now, dest="data/bids.json", scope_note=None, seen=None):
     rows = [b for b in rows if b]
     rows.sort(key=lambda b: b["due"])
     os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
@@ -182,7 +242,8 @@ def write_bids(rows, now, dest="data/bids.json"):
         "sourceUrl": "https://sam.gov/data-services/Contract%20Opportunities/datagov?privacy=Public",
         "updated": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "count": len(rows),
-        "scope": "USA websites, apps, software, and related digital services",
+        "seen": seen if seen is not None else len(rows),
+        "scope": scope_note or "Open United States notices from the public extract. Not every U.S. bid.",
         "featuredNaics": CORE,
     }
     tmp = dest + ".tmp"
@@ -190,7 +251,8 @@ def write_bids(rows, now, dest="data/bids.json"):
         json.dump({"meta": meta, "bids": rows}, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, dest)
     core_n = sum(1 for b in rows if b["scope"] == "core")
-    print(f"wrote {len(rows)} bids ({core_n} software/web, {len(rows) - core_n} related)")
+    general_n = sum(1 for b in rows if b["scope"] == "general")
+    print(f"wrote {len(rows)} bids to {dest} ({core_n} software/web, {general_n} other NAICS)")
     return len(rows)
 
 
@@ -217,7 +279,20 @@ def load_rows(path=None):
 
 def main(path=None):
     rows, now = load_rows(path)
-    write_bids(rows, now)
+    digital = [b for b in rows if b["scope"] in ("core", "related")]
+    write_bids(
+        digital, now, "data/bids.json",
+        scope_note="USA websites, apps, software, and related digital services",
+        seen=len(rows),
+    )
+    limit = int(os.environ.get("SAM_MAX", "10000"))
+    broad = cap_rows(rows, limit)
+    raw = os.environ.get("SAM_OUT", "data/raw/sam.json")
+    write_bids(
+        broad, now, raw,
+        scope_note="Open United States notices, all NAICS. Capped for GitHub Pages when the extract is larger.",
+        seen=len(rows),
+    )
 
 
 if __name__ == "__main__":

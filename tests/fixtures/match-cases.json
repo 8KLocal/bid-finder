@@ -1,0 +1,44 @@
+[
+  {
+    "name": "any keyword hits",
+    "interests": {"keywords": ["roof", "hvac"], "naics": [], "states": [], "sources": []},
+    "bid": {"title": "HVAC replacement", "agency": "Schools", "state": "TX", "naics": "238220", "source": "SAM.gov", "description": ""},
+    "want": true
+  },
+  {
+    "name": "keyword miss",
+    "interests": {"keywords": ["software"]},
+    "bid": {"title": "Janitorial", "agency": "Courts", "description": "Night cleaning", "naics": "561720", "state": "OH", "source": "SAM.gov"},
+    "want": false
+  },
+  {
+    "name": "naics prefix",
+    "interests": {"naics": ["5415"]},
+    "bid": {"title": "Programming", "naics": "541511", "state": "VA", "source": "SAM.gov"},
+    "want": true
+  },
+  {
+    "name": "state must match",
+    "interests": {"states": ["CA"]},
+    "bid": {"title": "Paving", "state": "NV", "source": "SAM.gov", "naics": "237310"},
+    "want": false
+  },
+  {
+    "name": "source must match",
+    "interests": {"sources": ["RFPMart"]},
+    "bid": {"title": "Hosting", "source": "SAM.gov", "state": "TX"},
+    "want": false
+  },
+  {
+    "name": "empty interests match",
+    "interests": {},
+    "bid": {"title": "Anything", "state": "NY", "source": "LA RAMP"},
+    "want": true
+  },
+  {
+    "name": "all dimensions",
+    "interests": {"keywords": ["bridge"], "naics": ["237"], "states": ["tx"], "sources": ["TxDOT Lettings"]},
+    "bid": {"title": "Bridge repair", "naics": "237310", "state": "TX", "source": "TxDOT Lettings", "description": ""},
+    "want": true
+  }
+]

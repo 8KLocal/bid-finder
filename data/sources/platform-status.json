@@ -1,0 +1,90 @@
+[
+  {
+    "id": "bonfire",
+    "name": "Bonfire / Euna",
+    "status": "blocked",
+    "note": "Bonfire / Euna: robots.txt disallows the public page we would have read. Listings were not copied.",
+    "checked": "2026-11-11T17:23:41.140Z",
+    "url": "https://harriscountytx.bonfirehub.com/opportunities/rss"
+  },
+  {
+    "id": "bidnet",
+    "name": "BidNet Direct",
+    "status": "skipped",
+    "note": "BidNet Direct robots.txt allows a generic crawler on the open-solicitations path, disallows paged search URLs, sets a crawl delay, and blocks a list of automated-bot user agents. The terms page is a client-rendered app, so we could not read a license that allows copying those listings into another product. Skipped.",
+    "checked": "2026-11-11T17:23:41.414Z",
+    "url": "https://www.bidnetdirect.com/solicitations/open-bids"
+  },
+  {
+    "id": "demandstar",
+    "name": "DemandStar",
+    "status": "skipped",
+    "note": "DemandStar robots.txt does not disallow the homepage. The terms of use were not available as a stable public document that grants the right to copy solicitations, so no listings were copied.",
+    "checked": "2026-11-11T17:23:41.474Z",
+    "url": "https://www.demandstar.com/"
+  },
+  {
+    "id": "planetbids",
+    "name": "PlanetBids",
+    "status": "skipped",
+    "note": "PlanetBids: robots.txt HTTP 405 PlanetBids does not publish one nationwide open-bid feed we can read without a login. Agency sites on this platform are recorded one by one when a jurisdiction URL is known. No listings were copied from the vendor homepage.",
+    "checked": "2026-11-11T17:23:41.732Z",
+    "url": "https://www.planetbids.com/"
+  },
+  {
+    "id": "opengov",
+    "name": "OpenGov Procurement",
+    "status": "blocked",
+    "note": "OpenGov Procurement: robots.txt was not a robots file (HTML challenge or app shell) Listings were not copied.",
+    "checked": "2026-11-11T17:23:41.926Z",
+    "url": "https://procurement.opengov.com/"
+  },
+  {
+    "id": "ionwave",
+    "name": "IonWave",
+    "status": "skipped",
+    "note": "IonWave does not publish one nationwide open-bid feed we can read without a login. Agency sites on this platform are recorded one by one when a jurisdiction URL is known. No listings were copied from the vendor homepage.",
+    "checked": "2026-11-11T17:23:42.089Z",
+    "url": "https://www.ionwave.net/"
+  },
+  {
+    "id": "buyboard",
+    "name": "BuyBoard",
+    "status": "skipped",
+    "note": "BuyBoard does not publish one nationwide open-bid feed we can read without a login. Agency sites on this platform are recorded one by one when a jurisdiction URL is known. No listings were copied from the vendor homepage.",
+    "checked": "2026-11-11T17:23:42.380Z",
+    "url": "https://www.buyboard.com/"
+  },
+  {
+    "id": "periscope",
+    "name": "Periscope Holdings",
+    "status": "skipped",
+    "note": "Periscope Holdings does not publish one nationwide open-bid feed we can read without a login. Agency sites on this platform are recorded one by one when a jurisdiction URL is known. No listings were copied from the vendor homepage.",
+    "checked": "2026-11-11T17:23:42.402Z",
+    "url": "https://www.periscopeholdings.com/"
+  },
+  {
+    "id": "jaggaer",
+    "name": "Jaggaer",
+    "status": "skipped",
+    "note": "Jaggaer does not publish one nationwide open-bid feed we can read without a login. Agency sites on this platform are recorded one by one when a jurisdiction URL is known. No listings were copied from the vendor homepage.",
+    "checked": "2026-11-11T17:23:42.929Z",
+    "url": "https://www.jaggaer.com/"
+  },
+  {
+    "id": "ariba",
+    "name": "SAP Ariba",
+    "status": "blocked",
+    "note": "SAP Ariba: robots.txt disallows the public page we would have read. Listings were not copied.",
+    "checked": "2026-11-11T17:23:43.564Z",
+    "url": "https://service.ariba.com/"
+  },
+  {
+    "id": "civicplus",
+    "name": "CivicPlus",
+    "status": "skipped",
+    "note": "CivicPlus does not publish one nationwide open-bid feed we can read without a login. Agency sites on this platform are recorded one by one when a jurisdiction URL is known. No listings were copied from the vendor homepage.",
+    "checked": "2026-11-11T17:23:43.742Z",
+    "url": "https://www.civicplus.com/"
+  }
+]
