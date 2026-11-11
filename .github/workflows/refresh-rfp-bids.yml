@@ -1,0 +1,24 @@
+name: Refresh RFPMart bids
+on:
+  schedule:
+    - cron: "41 12 * * *"   # daily, after the SAM.gov refresh
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: refresh-rfp-bids
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fetch public RFPMart listings
+        run: node scripts/fetch-rfp-bids.js
+      - name: Commit if changed
+        run: |
+          git config user.name "bid-finder-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/rfp-bids.json
+          git diff --cached --quiet && echo "No changes" || (git commit -m "Refresh RFPMart bids $(date -u +%F)" && git push)

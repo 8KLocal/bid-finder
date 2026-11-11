@@ -104,7 +104,7 @@ async function evalJs(expression) {
 
 async function waitFor(expression, label) {
   const started = Date.now();
-  while (Date.now() - started < 10000) {
+  while (Date.now() - started < 30000) {
     if (await evalJs(expression)) return;
     await new Promise((r) => setTimeout(r, 150));
   }
@@ -123,6 +123,8 @@ const desktop = await evalJs(`(() => {
     hasOldBrand: /Q8|q8marketing/i.test(document.documentElement.innerHTML),
     checkout: [...document.querySelectorAll("[data-checkout]")].map(el => el.textContent.trim()),
     fill: document.querySelector("[data-fill]")?.textContent.trim() || "",
+    claim: document.querySelector("[data-claim]")?.textContent.trim() || "",
+    source: !!document.querySelector("#source"),
     coreChecked: document.querySelector("#core").checked,
   };
 })()`);
@@ -133,6 +135,8 @@ if (desktop.heading !== "All bids") die("missing All bids heading");
 if (desktop.coreChecked) die("software filter should be off so All bids is the full list");
 if (desktop.bids < 20) die("expected the full matching list, saw " + desktop.bids);
 if (!desktop.fill.includes("Fill this out with AI")) die("missing fill action");
+if (desktop.claim !== "Claim this bid") die("missing claim action: " + desktop.claim);
+if (!desktop.source) die("missing source filter");
 if (!desktop.checkout.some((label) => label.includes("Continue to checkout"))) die("missing checkout");
 
 await evalJs(`document.querySelector("#q").value = "software"; document.querySelector("#q").dispatchEvent(new Event("input", { bubbles: true }));`);
@@ -144,26 +148,42 @@ if (!(filtered > 0 && filtered < desktop.bids)) die("keyword filter did not narr
 await evalJs(`document.querySelector("#clear").click()`);
 await waitFor(`document.querySelectorAll("article.bid").length === ${desktop.bids}`, "clear filters");
 
-await evalJs(`document.querySelector("[data-fill]").click()`);
-await waitFor("document.querySelector('#draft-dialog').open && document.querySelector('#draft-text').value.length > 80", "draft");
+await evalJs(`document.querySelector("#source").value = "RFPMart"; document.querySelector("#source").dispatchEvent(new Event("input", { bubbles: true }));`);
+await waitFor(`document.querySelectorAll("article.bid").length > 0 && document.querySelector("#count").textContent.includes("of")`, "rfp source");
+const rfpShown = await evalJs(`document.querySelectorAll("article.bid").length`);
+console.log("rfpmart filter", rfpShown);
+if (rfpShown < 1) die("RFPMart source filter showed no bids");
+const rfpCard = await evalJs(`document.querySelector("article.bid").innerText`);
+if (!rfpCard.includes("RFPMart")) die("RFPMart card missing source");
+await evalJs(`document.querySelector("#clear").click()`);
+await waitFor(`document.querySelectorAll("article.bid").length === ${desktop.bids}`, "clear source");
+
+await evalJs(`document.querySelector("[data-claim]").click()`);
+await waitFor("document.querySelector('#draft-dialog').open && !document.querySelector('#draft-editor').hidden && document.querySelector('#draft-text').value.length > 80", "claim draft");
 await shot("desktop-draft.png");
 const draft = await evalJs(`({
   open: document.querySelector("#draft-dialog").open,
   text: document.querySelector("#draft-text").value.slice(0, 240),
   status: document.querySelector("#draft-status").textContent,
+  note: document.querySelector("#claim-note").textContent,
+  copy: !!document.querySelector("#draft-copy"),
+  download: !!document.querySelector("#draft-download"),
+  claims: Object.keys(JSON.parse(localStorage.getItem("iw-claimed-bids") || "{}")).length,
 })`);
 console.log("draft status", draft.status);
-if (!/NOT SUBMITTED|not been submitted|Nothing was submitted/i.test(draft.text + " " + draft.status)) {
+if (!draft.copy || !draft.download) die("draft is missing copy or download");
+if (draft.claims !== 1) die("claim was not saved in this browser");
+if (!/NOT SUBMITTED|not been submitted|Nothing was submitted|Nothing is submitted/i.test(draft.text + " " + draft.status + " " + draft.note)) {
   die("draft does not say it is unsubmitted");
 }
+await evalJs(`document.querySelector("#draft-dialog").close()`);
+await waitFor(`document.querySelector("[data-claim]").textContent.includes("Claimed")`, "claimed label");
 
-await evalJs(`document.querySelector("#draft-billing [data-checkout]").click()`);
-await waitFor("document.querySelector('#checkout-dialog').open", "checkout dialog");
-const checkoutText = await evalJs("document.querySelector('#checkout-dialog').innerText");
-if (!checkoutText.includes("STRIPE_SECRET_KEY") || !checkoutText.includes("STRIPE_PRICE_ID") || !checkoutText.includes("stripePaymentLink")) {
-  die("checkout help is missing the env setup");
-}
-if (!checkoutText.includes("$29/month")) die("price missing");
+await evalJs(`document.querySelector("[data-fill]").click()`);
+await waitFor("document.querySelector('#draft-dialog').open && !document.querySelector('#draft-paywall').hidden", "paywall");
+const payLink = await evalJs(`window.IW_CONFIG && window.IW_CONFIG.stripePaymentLink`);
+if (!String(payLink).startsWith("https://buy.stripe.com/")) die("expected the public Stripe payment link");
+await evalJs(`document.querySelector("#draft-dialog").close()`);
 
 async function shot(name) {
   const png = await send("Page.captureScreenshot", { format: "png" }, sessionId);

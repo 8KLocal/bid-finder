@@ -1,9 +1,12 @@
 import { fallbackDraft, modelMessages } from "./draft.js";
+import { claimPayload, mergeBidLists, safeWebhookUrl } from "./list.js";
 
 const CORE = new Set(["541511", "541512", "541513", "541519", "518210", "511210", "519130"]);
 const DIGITAL = /\b(websites?|web[- ]based|web[- ]apps?|web[- ]applications?|software|saas|mobile apps?|mobile applications?|application development|application software|information technology|information systems?|help[- ]desks?|cybersecurity|cyber security|cloud computing|devops|web hosting|data hosting|programmers?|software developers?|user interface|user experience|sharepoint|servicenow|salesforce|digital services?|computer systems?|custom computer)\b/i;
 const PLAN_KEY = "iw-starter";
 const KEY_SESSION = "iw-model-key";
+const CLAIM_KEY = "iw-claimed-bids";
+const EMAIL_KEY = "iw-claim-email";
 const DAY = 864e5;
 
 const $ = (id) => document.getElementById(id);
@@ -54,7 +57,28 @@ function clearPlan() {
   renderPlan();
 }
 
-function daysLeft(iso) { return (new Date(iso) - Date.now()) / DAY; }
+function daysLeft(iso) {
+  const t = new Date(iso).getTime();
+  if (!iso || Number.isNaN(t)) return NaN;
+  return (t - Date.now()) / DAY;
+}
+
+function readClaims() {
+  try {
+    const data = JSON.parse(localStorage.getItem(CLAIM_KEY) || "{}");
+    return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+  } catch { return {}; }
+}
+
+function claimEmail() {
+  return ($("claim-email")?.value || localStorage.getItem(EMAIL_KEY) || "").trim();
+}
+
+function stillOpen(b) {
+  const t = new Date(b.due).getTime();
+  if (!b.due || Number.isNaN(t)) return b.source === "RFPMart";
+  return t > Date.now();
+}
 
 function phrase(s) {
   return String(s ?? "").replace(/\b(Of|The|And|For|A|An|In|On|At|To)\b/g, (w) => w.toLowerCase());
@@ -71,6 +95,7 @@ function formatDue(iso) {
 
 /** Older data files have no scope field. Mirror scripts/fetch_bids.py. */
 function inScope(b) {
+  if (b.source === "RFPMart" || b.scope === "rfp") return true;
   if (b.scope === "core" || b.scope === "related") return true;
   if (b.scope) return false;
   if (CORE.has(b.naics)) return true;
@@ -81,7 +106,8 @@ function inScope(b) {
 function filtersActive() {
   return Boolean(
     $("q").value.trim() || $("due").value || $("agency").value ||
-    $("naics").value || $("setaside").value || $("core").checked
+    $("naics").value || $("setaside").value || $("source").value ||
+    $("core").checked || $("claimed").checked
   );
 }
 
@@ -92,61 +118,90 @@ function filtered() {
   const a = $("agency").value;
   const due = $("due").value;
   const sa = $("setaside").value;
+  const source = $("source").value;
   const coreOnly = $("core").checked;
+  const claims = readClaims();
+  const claimedOnly = $("claimed").checked;
   return all.filter((b) => {
+    if (claimedOnly && !claims[b.id]) return false;
+    if (source && (b.source || "SAM.gov") !== source) return false;
     if (coreOnly && b.scope !== "core" && !CORE.has(b.naics)) return false;
     if (n && b.naics !== n) return false;
     if (a && b.agency !== a) return false;
     if (sa === "__any" ? b.setAside === "None" : sa && b.setAside !== sa) return false;
     if (due) {
       const d = daysLeft(b.due);
+      if (!Number.isFinite(d)) return false;
       if (due === "31+" ? d <= 30 : d > +due) return false;
     }
     if (terms.length) {
-      const hay = `${b.title} ${b.agency} ${b.subTier} ${b.office} ${b.summary} ${b.solicitation} ${b.naics}`.toLowerCase();
+      const hay = `${b.title} ${b.agency} ${b.subTier} ${b.office} ${b.summary} ${b.solicitation} ${b.naics} ${b.category || ""} ${b.place || ""} ${b.source || ""}`.toLowerCase();
       if (!terms.every((t) => hay.includes(t))) return false;
     }
     return true;
   });
 }
 
+function dueParts(iso) {
+  const d = daysLeft(iso);
+  if (!Number.isFinite(d)) {
+    return { cls: "", due: "Deadline on the notice", left: "See the listing" };
+  }
+  const cls = d < 3 ? "soon" : d < 10 ? "mid" : "";
+  const whole = Math.floor(d);
+  const left = d < 1 ? "Due within 24 hours" : `${whole} ${whole === 1 ? "day" : "days"} left`;
+  return { cls, due: `Due ${formatDue(iso)}`, left };
+}
+
 function render() {
   const rows = filtered();
-  $("count").textContent = filtersActive()
-    ? `${rows.length.toLocaleString()} of ${all.length.toLocaleString()} open bids`
-    : `${rows.length.toLocaleString()} open ${rows.length === 1 ? "bid" : "bids"}`;
+  const claims = readClaims();
+  $("count").textContent = $("claimed").checked
+    ? `${rows.length.toLocaleString()} claimed ${rows.length === 1 ? "bid" : "bids"} in this browser`
+    : filtersActive()
+      ? `${rows.length.toLocaleString()} of ${all.length.toLocaleString()} open bids`
+      : `${rows.length.toLocaleString()} open ${rows.length === 1 ? "bid" : "bids"}`;
   $("clear").hidden = !filtersActive();
   const list = $("list");
   if (!rows.length) {
-    list.innerHTML = '<p class="empty">No open bids match these filters. Clear them to see the full list.</p>';
+    const noneClaimed = $("claimed").checked && Object.keys(claims).length === 0;
+    list.innerHTML = noneClaimed
+      ? '<p class="empty">You have not claimed a bid in this browser yet. Choose Claim this bid on a listing to save it here and open a draft.</p>'
+      : '<p class="empty">No open bids match these filters. Clear them to see the full list.</p>';
     return;
   }
   list.innerHTML = rows.map((b) => {
-    const d = daysLeft(b.due);
-    const cls = d < 3 ? "soon" : d < 10 ? "mid" : "";
-    const whole = Math.floor(d);
-    const left = d < 1 ? "Due within 24 hours" : `${whole} ${whole === 1 ? "day" : "days"} left`;
+    const when = dueParts(b.due);
+    const claimed = Boolean(claims[b.id]);
     const setAside = b.setAside && b.setAside !== "None"
       ? b.setAside.replace(/\s*\(FAR [^)]*\)/, "")
       : "";
-    return `<article class="bid">
+    const who = [b.agency ? phrase(b.agency) : "", b.subTier && b.subTier !== b.agency ? phrase(b.subTier) : "", b.place ? phrase(b.place) : ""]
+      .filter(Boolean)
+      .join(" · ");
+    const source = b.source || "SAM.gov";
+    return `<article class="bid${claimed ? " claimed" : ""}">
       <div>
         <h3><a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b.title)}</a></h3>
-        <div class="sub">${esc(phrase(b.agency))}${b.subTier && b.subTier !== b.agency ? " · " + esc(phrase(b.subTier)) : ""}${b.place ? " · " + esc(phrase(b.place)) : ""}</div>
+        <div class="sub">${esc(who || source)}</div>
         ${b.summary ? `<p class="sum">${esc(b.summary)}</p>` : ""}
         <div class="pills">
-          <span class="pill">NAICS ${esc(b.naics)}${b.naicsLabel ? " · " + esc(b.naicsLabel) : ""}</span>
-          <span class="pill">${esc(b.type)}</span>
+          <span class="pill">${esc(source)}</span>
+          ${b.naics ? `<span class="pill">NAICS ${esc(b.naics)}${b.naicsLabel ? " · " + esc(b.naicsLabel) : ""}</span>` : ""}
+          ${b.category ? `<span class="pill">${esc(b.category)}</span>` : ""}
+          ${b.type ? `<span class="pill">${esc(b.type)}</span>` : ""}
           ${setAside ? `<span class="pill">${esc(setAside)}</span>` : ""}
           ${b.remote ? '<span class="pill remote">Remote</span>' : ""}
+          ${claimed ? '<span class="pill claimed">Claimed</span>' : ""}
           ${b.solicitation ? `<span class="pill">#${esc(b.solicitation)}</span>` : ""}
         </div>
       </div>
       <div class="side">
-        <div class="due ${cls}">Due ${esc(formatDue(b.due))}</div>
-        <div class="left">${esc(left)}</div>
-        <a class="btn ghost" href="${esc(b.link)}" target="_blank" rel="noopener">Official notice</a>
-        <button class="btn" type="button" data-fill="${esc(b.id)}">Fill this out with AI</button>
+        <div class="due ${when.cls}">${esc(when.due)}</div>
+        <div class="left">${esc(when.left)}</div>
+        <button class="btn${claimed ? " ghost" : ""}" type="button" data-claim="${esc(b.id)}" aria-pressed="${claimed ? "true" : "false"}">${claimed ? "Claimed" : "Claim this bid"}</button>
+        <button class="btn ghost" type="button" data-fill="${esc(b.id)}">Fill this out with AI</button>
+        <a class="btn ghost" href="${esc(b.link)}" target="_blank" rel="noopener">Original notice</a>
       </div>
     </article>`;
   }).join("");
@@ -168,7 +223,9 @@ function clearFilters() {
   $("agency").value = "";
   $("naics").value = "";
   $("setaside").value = "";
+  $("source").value = "";
   $("core").checked = false;
+  $("claimed").checked = false;
   render();
 }
 
@@ -225,6 +282,7 @@ async function loadConfig() {
     checkoutConfigured: Boolean(remote.checkoutConfigured),
     aiConfigured: Boolean(remote.aiConfigured),
     planPriceLabel: fileCfg.planPriceLabel || "$29/month",
+    claimWebhookUrl: safeWebhookUrl(fileCfg.claimWebhookUrl || ""),
   };
   mountBuyButton();
   renderPlan();
@@ -350,17 +408,55 @@ function showDialog(id) {
   if (!next.open) next.showModal();
 }
 
-function openDraft(bid) {
+function openDraft(bid, opts = {}) {
   activeBid = bid;
   $("draft-bid").textContent = bid.title;
-  const locked = stripeReady() && !planActive();
+  const locked = !opts.force && stripeReady() && !planActive();
   const paid = planActive();
   $("draft-paywall").hidden = !locked;
   $("draft-editor").hidden = locked;
   $("draft-billing").hidden = locked || paid;
+  $("draft-title").textContent = opts.force ? "Filled-out draft" : "Fill this out with AI";
+  $("claim-note").textContent = opts.note || "";
   $("draft-key").value = sessionStorage.getItem(KEY_SESSION) || "";
   if (!locked) fillDraft(bid);
   showDialog("draft-dialog");
+}
+
+function claimBid(bid) {
+  const claims = readClaims();
+  const first = !claims[bid.id];
+  const email = claimEmail();
+  if (email) localStorage.setItem(EMAIL_KEY, email);
+  else localStorage.removeItem(EMAIL_KEY);
+  const payload = claimPayload(bid, new Date().toISOString(), email);
+  claims[bid.id] = payload;
+  localStorage.setItem(CLAIM_KEY, JSON.stringify(claims));
+  const webhook = safeWebhookUrl(cfg.claimWebhookUrl);
+  let note = "Claimed in this browser. Copy or download the draft. Nothing is submitted to a government portal.";
+  if (webhook && first) note = "Claimed in this browser. Sending the team notice. Copy or download the draft. Nothing is submitted to a government portal.";
+  if (!first) note = "Already claimed in this browser. Copy or download the draft. Nothing is submitted to a government portal.";
+  render();
+  openDraft(bid, { force: true, note });
+  if (first && webhook) notifyClaim(payload, webhook);
+}
+
+async function notifyClaim(payload, url) {
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    if (activeBid && activeBid.id === payload.bidId) {
+      $("claim-note").textContent = "Claimed in this browser. The team notice was accepted. Copy or download the draft. Nothing was submitted to a government portal.";
+    }
+  } catch {
+    if (activeBid && activeBid.id === payload.bidId) {
+      $("claim-note").textContent = "Claimed in this browser. The team notice could not be delivered from this page. Copy or download the draft. Nothing was submitted to a government portal.";
+    }
+  }
 }
 
 async function applyCheckoutReturn() {
@@ -398,31 +494,72 @@ async function applyCheckoutReturn() {
 
 async function init() {
   $("yr").textContent = new Date().getFullYear();
+  const savedEmail = localStorage.getItem(EMAIL_KEY) || "";
+  if (savedEmail) $("claim-email").value = savedEmail;
   await loadConfig();
   await applyCheckoutReturn();
+  let sam = [];
+  let rfp = [];
+  let rfpMeta = {};
+  let samFailed = false;
   try {
     const res = await fetch("data/bids.json", { cache: "no-cache" });
+    if (!res.ok) throw new Error(String(res.status));
     const data = await res.json();
     meta = data.meta || {};
-    all = (data.bids || []).filter((b) => inScope(b) && new Date(b.due) > Date.now());
+    sam = (data.bids || [])
+      .filter((b) => inScope(b) && stillOpen({ ...b, source: b.source || "SAM.gov" }))
+      .map((b) => ({ ...b, source: b.source || "SAM.gov" }));
   } catch {
+    samFailed = true;
+  }
+  try {
+    const res = await fetch("data/rfp-bids.json", { cache: "no-cache" });
+    if (res.ok) {
+      const data = await res.json();
+      rfpMeta = data.meta || {};
+      rfp = (data.bids || []).filter((b) => b && (b.source === "RFPMart" || b.scope === "rfp") && stillOpen({ ...b, source: "RFPMart" }))
+        .map((b) => ({ ...b, source: "RFPMart" }));
+    }
+  } catch { /* The RFP file is optional until the collector has run. */ }
+  if (samFailed && !rfp.length) {
     $("meta").textContent = "The bid list could not be loaded.";
     $("list").innerHTML = '<p class="empty">The public list is unavailable right now. Try again shortly.</p>';
     $("list").removeAttribute("aria-busy");
     return;
   }
+  all = mergeBidLists(sam, rfp).sort((a, b) => {
+    const ad = Date.parse(a.due);
+    const bd = Date.parse(b.due);
+    const aOk = Number.isFinite(ad);
+    const bOk = Number.isFinite(bd);
+    if (aOk && bOk) return ad - bd;
+    if (aOk) return -1;
+    if (bOk) return 1;
+    return a.title.localeCompare(b.title);
+  });
   $("stat-count").textContent = all.length.toLocaleString();
-  $("stat-week").textContent = all.filter((b) => daysLeft(b.due) <= 7).length.toLocaleString();
+  $("stat-week").textContent = all.filter((b) => {
+    const d = daysLeft(b.due);
+    return Number.isFinite(d) && d <= 7;
+  }).length.toLocaleString();
   $("stat-agencies").textContent = new Set(all.map((b) => b.agency).filter(Boolean)).size.toLocaleString();
   const updated = meta.updated
     ? new Date(meta.updated).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York" }) + " ET"
     : "the latest extract";
-  const source = meta.sourceUrl
-    ? `<a href="${esc(meta.sourceUrl)}" target="_blank" rel="noopener">SAM.gov public data</a>`
-    : "SAM.gov public data";
-  $("meta").innerHTML = `Every matching open opportunity · ${source} · updated ${esc(updated)}`;
+  const samLink = meta.sourceUrl
+    ? `<a href="${esc(meta.sourceUrl)}" target="_blank" rel="noopener">SAM.gov</a>`
+    : "SAM.gov";
+  const rfpCount = all.filter((b) => b.source === "RFPMart").length;
+  const rfpLink = `<a href="https://www.rfpmart.com/" target="_blank" rel="noopener">RFPMart</a>`;
+  $("meta").innerHTML = rfpCount
+    ? `Every open listing · ${samLink} · ${rfpLink} (${rfpCount.toLocaleString()}) · updated ${esc(updated)}`
+    : `Every open listing · ${samLink} · updated ${esc(updated)}`;
+  if (rfpMeta.blocked && !rfpCount) {
+    showNotice("RFPMart did not return public listings, so All bids is showing SAM.gov notices.", true);
+  }
   const labels = meta.featuredNaics || {};
-  const naics = [...new Set(all.map((b) => b.naics))].sort((x, y) => (labels[y] ? 1 : 0) - (labels[x] ? 1 : 0) || x.localeCompare(y));
+  const naics = [...new Set(all.map((b) => b.naics).filter(Boolean))].sort((x, y) => (labels[y] ? 1 : 0) - (labels[x] ? 1 : 0) || x.localeCompare(y));
   fillSelect($("naics"), naics, (v) => v + (labels[v] ? " · " + labels[v] : ""));
   fillSelect($("agency"), [...new Set(all.map((b) => b.agency).filter(Boolean))].sort());
   const setAsides = [...new Set(all.map((b) => b.setAside))].filter((v) => v && v !== "None").sort();
@@ -447,6 +584,24 @@ document.querySelectorAll("[data-all-bids]").forEach((link) => {
   });
 });
 
+document.querySelectorAll("[data-claimed-view]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    $("q").value = "";
+    $("hero-q").value = "";
+    $("due").value = "";
+    $("agency").value = "";
+    $("naics").value = "";
+    $("setaside").value = "";
+    $("source").value = "";
+    $("core").checked = false;
+    $("claimed").checked = true;
+    render();
+    $("bids").scrollIntoView();
+    history.replaceState(null, "", "#bids");
+  });
+});
+
 $("filters").addEventListener("submit", (event) => event.preventDefault());
 $("hero-search").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -455,11 +610,22 @@ $("hero-search").addEventListener("submit", (event) => {
   render();
 });
 
-["q", "naics", "agency", "due", "setaside", "core"].forEach((id) => {
+["q", "naics", "agency", "due", "setaside", "source", "core", "claimed"].forEach((id) => {
   $(id).addEventListener("input", render);
+});
+$("claim-email").addEventListener("change", () => {
+  const email = $("claim-email").value.trim();
+  if (email) localStorage.setItem(EMAIL_KEY, email);
+  else localStorage.removeItem(EMAIL_KEY);
 });
 $("clear").addEventListener("click", clearFilters);
 $("list").addEventListener("click", (event) => {
+  const claim = event.target.closest("[data-claim]");
+  if (claim) {
+    const bid = all.find((b) => b.id === claim.dataset.claim);
+    if (bid) claimBid(bid);
+    return;
+  }
   const button = event.target.closest("[data-fill]");
   if (!button) return;
   const bid = all.find((b) => b.id === button.dataset.fill);

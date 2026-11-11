@@ -4,6 +4,8 @@
  * Put publishable values here so GitHub Pages can take a payment without a
  * server. Never paste a Stripe secret key (sk_ / rk_) or an AI API key into
  * this file — those belong in environment variables for server/handlers.js.
+ * The claim webhook is a public URL only. Do not put a token, password, or
+ * signing secret in it. Leave it empty to keep claims in the browser.
  *
  * After you fill these in, commit this file (the payment link and pk_ key are
  * meant to be public) or leave the strings empty and set the same names as
@@ -39,4 +41,9 @@ window.IW_CONFIG = {
   verifyEndpoint: "api/verify-checkout",
   aiDraftEndpoint: "api/draft",
   publicConfigEndpoint: "api/public-config",
+
+  // Optional public HTTPS endpoint for a claim notice. Empty by default.
+  // The browser POSTs JSON: { bidId, title, agency, deadline, claimedAt, contactEmail? }.
+  // Never put an API key, password, or other secret in this file.
+  claimWebhookUrl: "",
 };

@@ -38,6 +38,7 @@
     </a>
     <nav aria-label="Primary">
       <a href="#bids" data-all-bids>All bids</a>
+      <a href="#bids" data-claimed-view>My claimed bids</a>
       <a href="#how">How it works</a>
       <a href="#pricing">Pricing</a>
       <a class="btn sm" href="#bids" data-all-bids>Browse bids</a>
@@ -50,7 +51,7 @@
     <div class="wrap">
       <p class="eyebrow">Public notices · United States</p>
       <h1>Open contracts for websites, apps, and software.</h1>
-      <p class="lead">It's Workplace lists active U.S. government opportunities for digital work and related remote services. Every row links to the official notice. Browsing is free. A draft, when you want one, stays on your side of the table — we never submit it.</p>
+      <p class="lead">It's Workplace lists open SAM.gov notices and public RFPMart listings. Every row links to the original notice. Browsing is free. Claim a bid and a draft opens here — we never submit it.</p>
       <form class="hero-search" id="hero-search" role="search">
         <label class="sr-only" for="hero-q">Search bids</label>
         <input id="hero-q" type="search" placeholder="Search by title, agency, or software work" autocomplete="off">
@@ -101,8 +102,23 @@
           <span>Set-aside</span>
           <select id="setaside"><option value="">Any set-aside</option></select>
         </label>
-        <label class="chk"><input type="checkbox" id="core"> Software, apps, and web NAICS only</label>
-        <button class="text-btn" type="button" id="clear" hidden>Clear filters</button>
+        <label class="field">
+          <span>Source</span>
+          <select id="source">
+            <option value="">All sources</option>
+            <option value="SAM.gov">SAM.gov</option>
+            <option value="RFPMart">RFPMart</option>
+          </select>
+        </label>
+        <div class="checks">
+          <label class="chk"><input type="checkbox" id="core"> Software, apps, and web NAICS only</label>
+          <label class="chk"><input type="checkbox" id="claimed"> My claimed bids</label>
+          <label class="field email-field">
+            <span>Claim notice email (optional)</span>
+            <input id="claim-email" type="email" inputmode="email" autocomplete="email" placeholder="name@company.com" spellcheck="false">
+          </label>
+          <button class="text-btn" type="button" id="clear" hidden>Clear filters</button>
+        </div>
       </form>
       <p class="count" id="count" aria-live="polite"></p>
       <div id="list" class="list" aria-busy="true">
@@ -118,17 +134,17 @@
         <article>
           <p class="step">01</p>
           <h3>Official notices only</h3>
-          <p>Opportunities come from the SAM.gov Contract Opportunities public extract, refreshed on a daily schedule. Each bid links to the notice on sam.gov.</p>
+          <p>Opportunities come from the SAM.gov Contract Opportunities public extract and from public RFPMart listings, refreshed on a daily schedule. Each bid links to the original notice.</p>
         </article>
         <article>
           <p class="step">02</p>
           <h3>The whole list, not a teaser</h3>
-          <p>All bids shows every open U.S. notice we keep for websites, apps, software, and related digital services. Filter by keyword, deadline, agency, NAICS, or set-aside.</p>
+          <p>All bids shows every open notice we keep. Filter by keyword, deadline, agency, NAICS, set-aside, or source. My claimed bids shows what you claimed in this browser.</p>
         </article>
         <article>
           <p class="step">03</p>
-          <h3>Fill it out when you are ready</h3>
-          <p>Starter unlocks “Fill this out with AI.” You get a draft you can edit, copy, or download. Nothing is sent to a contracting officer unless you submit it yourself.</p>
+          <h3>Claim it and fill it out</h3>
+          <p>Claim this bid saves the listing in this browser and opens a draft you can edit, copy, or download. Nothing is sent to a contracting officer unless you submit it yourself.</p>
         </article>
       </div>
     </div>
@@ -145,8 +161,9 @@
           <p class="price">$0</p>
           <ul>
             <li>Every open bid in the public list</li>
-            <li>Keyword, deadline, agency, NAICS, and set-aside filters</li>
-            <li>Direct links to the official notice</li>
+            <li>Keyword, deadline, agency, NAICS, set-aside, and source filters</li>
+            <li>Claim this bid and open a draft in this browser</li>
+            <li>Direct links to the original notice</li>
           </ul>
           <a class="btn ghost" href="#bids" data-all-bids>Browse all bids</a>
         </article>
@@ -174,7 +191,7 @@
   <div class="wrap">
     <p><strong>It's Workplace</strong> · ITS WORKPLACE INC · <a href="https://itsworkplace.com">itsworkplace.com</a></p>
     <p class="muted small">It's Workplace is our offshore team that runs this business.</p>
-    <p class="muted small">This is a private listing, not a U.S. government website. Data comes from the SAM.gov Contract Opportunities public extract. Always confirm details, amendments, and where to submit on the official notice. AI drafts are starting points for your review.</p>
+    <p class="muted small">This is a private listing, not a U.S. government website. Data comes from the SAM.gov Contract Opportunities public extract and from public RFPMart listings. Always confirm details, amendments, and where to submit on the original notice. AI drafts are starting points for your review. A claim stays in this browser.</p>
     <p class="muted small">© <span id="yr"></span> ITS WORKPLACE INC</p>
   </div>
 </footer>
@@ -189,6 +206,7 @@
       <button type="button" class="icon-btn" id="draft-close" aria-label="Close draft">Close</button>
     </header>
     <p class="dialog-bid" id="draft-bid"></p>
+    <p class="status" id="claim-note"></p>
     <div id="draft-paywall">
       <p>Starter is $29/month and unlocks a draft of this notice that you can edit and copy. Checkout is handled by Stripe for It's Workplace. We still will not submit anything for you.</p>
       <button class="btn" type="button" data-checkout>Continue to checkout</button>

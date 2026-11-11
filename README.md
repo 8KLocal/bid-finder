@@ -12,13 +12,20 @@ Not affiliated with the U.S. Government. Always confirm details on the official 
 
 ## What you can do
 
-- **All bids** lists every matching open notice in `data/bids.json`, not a featured subset. Filter by keyword, deadline, agency, NAICS, and set-aside. Each row links to the official SAM.gov notice.
-- **Free** is browse-only.
-- **Starter ($29/month)** unlocks **Fill this out with AI**. The draft can be edited, copied, or downloaded. Nothing is submitted to SAM.gov or any other government portal.
+- **All bids** lists every matching open SAM.gov notice in `data/bids.json` and every public RFPMart listing in `data/rfp-bids.json`. Filter by keyword, deadline, agency, NAICS, set-aside, or source (SAM.gov / RFPMart). Each row links to the original notice.
+- **Claim this bid** saves the listing in this browser and opens a draft you can edit, copy, or download. **My claimed bids** shows those claims. Nothing is submitted to a government portal.
+- **Free** includes browsing and claiming.
+- **Starter ($29/month)** unlocks **Fill this out with AI** when Stripe is connected. The same draft editor is what Claim opens. Nothing is submitted to SAM.gov or any other government portal.
 
 ## How the list is built
 
 `scripts/fetch_bids.py` reads the SAM.gov Contract Opportunities public CSV (no API key) and writes `data/bids.json`.
+
+`scripts/fetch-rfp-bids.js` reads [RFPMart](https://www.rfpmart.com/) public category RSS feeds and the first page of the public HTML index, then writes `data/rfp-bids.json`. Each row is `source: "RFPMart"` and links to the original listing. It reads `robots.txt` first, waits out the published crawl delay, and does not request disallowed paths, log in, or store credentials. A descriptive user agent is used. State and country feeds are skipped because they repeat the category feeds. The HTML catalog reports thousands of pages; walking all of them at that crawl delay would take many hours and the file would be too large for GitHub Pages. Set `RFP_INDEX_PAGES` to walk more `home-N.html` pages.
+
+```bash
+node scripts/fetch-rfp-bids.js
+```
 
 Kept notices are active, still before the response deadline, and performed in the United States (or with no country listed). Software and web NAICS codes are kept on their own:
 
@@ -47,7 +54,7 @@ That serves the site and the `/api` routes at http://127.0.0.1:8080
 
 ## Daily refresh
 
-`.github/workflows/refresh-bids.yml` runs every day, reruns the fetch script, and commits `data/bids.json` when it changes. It uses `GITHUB_TOKEN` and needs no secrets. A copy of the same workflow lives in `ops/refresh-bids.yml`.
+`.github/workflows/refresh-bids.yml` runs every day, reruns the SAM.gov fetch, and commits `data/bids.json` when it changes. `.github/workflows/refresh-rfp-bids.yml` does the same for RFPMart on a daily schedule and on manual dispatch. Both use `GITHUB_TOKEN` and need no secrets. Copies live in `ops/`.
 
 GitHub Pages publishes the `main` branch from `/` (see `.nojekyll`). Merging to `main` updates https://8klocal.github.io/bid-finder/
 
@@ -95,9 +102,15 @@ Optional: set `stripePublishableKey` and `stripeBuyButtonId` to render Stripe’
 
 The `api/` files are Vercel-style handlers (`export default function handler`). Point `stripeCheckoutEndpoint` in `config.js` at that host if the API is not on the same origin as the Pages site. Set `CORS_ORIGIN` (default `*`) if you want to limit it, for example to `https://8klocal.github.io`.
 
+## Claiming a bid
+
+Every card has **Claim this bid**. Claiming stores `{ bidId, title, agency, deadline, claimedAt }` in `localStorage` under `iw-claimed-bids` and immediately opens the draft editor (the same `fillDraft` path as Fill this out with AI, without an extra click). Copy and download stay on that dialog. **My claimed bids** filters to that browser’s claims.
+
+If `claimWebhookUrl` in `assets/config.js` is an `https` URL with no username or password, the browser POSTs that JSON object, plus `contactEmail` when the optional email field is a valid address. The value is empty by default. Do not put an API key, password, or signing secret in `config.js`. A claim is kept in the browser even if the webhook cannot be reached.
+
 ## AI fill-out
 
-Every bid has **Fill this out with AI**.
+Every bid has **Fill this out with AI**. **Claim this bid** opens the same editor immediately so the draft can be copied or downloaded. With Stripe configured, the Fill button itself still asks for Starter before it generates a draft.
 
 - With Stripe configured, Starter has to be active in the browser before a draft is generated.
 - Without Stripe keys yet, the dialog still builds a structured draft from the public notice and says the model is not configured. The checkout button in that dialog opens the setup notes above.
