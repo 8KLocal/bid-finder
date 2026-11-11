@@ -25,7 +25,7 @@ Then edit `tenants/acme.json`:
 | `brand`, `colors`, `tagline`, `logo` | What the page shows |
 | `emailFrom`, `replyTo`, `address` | Digest and receipt footer |
 | `bidPriceCents` | Price for one AI bid. Default 2000 ($20) |
-| `mail` | Postage, per-page, and service-fee cents for “Mail it for me” |
+| `mail` | Postage, a flat mailing charge (`mailingChargeCents`, default 500), per-page printing, and service-fee cents |
 | `defaults` | Keywords, NAICS, states, and sources suggested on the signup form |
 | `persona` | Extra instructions added to the Grok system prompt |
 | `domains` | Hosts that should resolve to this tenant |

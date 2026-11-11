@@ -123,8 +123,12 @@ const desktop = await evalJs(`(() => {
     brand: document.querySelector(".brand-name").innerText,
     hasOldBrand: /Q8|q8marketing/i.test(document.documentElement.innerHTML),
     checkout: [...document.querySelectorAll("[data-checkout]")].map(el => el.textContent.trim()),
-    fill: document.querySelector("[data-fill]")?.textContent.trim() || "",
+    fill: document.querySelector("[data-ai]")?.textContent.trim() || document.querySelector(".waitlist")?.textContent.trim() || "",
     claim: document.querySelector("[data-claim]")?.textContent.trim() || "",
+    listUnderFilters: !!(document.querySelector("#filters").compareDocumentPosition(document.querySelector("#list")) & Node.DOCUMENT_POSITION_FOLLOWING) && !document.querySelector("#filters ~ #freshness"),
+    sourcesCollapsed: document.querySelector("#coverage")?.tagName === "DETAILS" && !document.querySelector("#coverage").open && !!(document.querySelector("#list").compareDocumentPosition(document.querySelector("#freshness")) & Node.DOCUMENT_POSITION_FOLLOWING),
+    mailButton: document.querySelector("#mail-submit")?.textContent.trim() || "",
+    mailQuote: document.querySelector("#mail-quote-out")?.innerText || "",
     source: !!document.querySelector("#source"),
     signup: !!document.querySelector("#signup"),
     coreChecked: document.querySelector("#core").checked,
@@ -137,7 +141,16 @@ if (desktop.heading !== "All bids") die("missing All bids heading");
 if (desktop.coreChecked) die("software filter should be off so All bids is the full list");
 if (desktop.total < 20) die("expected the full matching list, saw " + desktop.total);
 if (!desktop.signup) die("missing signup");
-if (!desktop.fill.includes("Fill this out with AI")) die("missing fill action");
+if (!/Fill out with AI, \$20|Coming online soon, join the waitlist/.test(desktop.fill)) die("missing AI action: " + desktop.fill);
+if (!desktop.listUnderFilters) die("bid list is not directly under the filters");
+if (!desktop.sourcesCollapsed) die("source cards are not collapsed under the list");
+if (desktop.mailButton !== "Coming online soon") die("mail button: " + desktop.mailButton);
+const quoteLines = desktop.mailQuote.split("\n").map((line) => line.trim()).filter(Boolean);
+const postageAt = quoteLines.findIndex((line) => line.startsWith("Postage"));
+const mailingAt = quoteLines.findIndex((line) => line.startsWith("Mailing charge"));
+const pagesAt = quoteLines.findIndex((line) => line.startsWith("Per-page printing"));
+if (!(postageAt >= 0 && postageAt < mailingAt && mailingAt < pagesAt)) die("quote line order: " + desktop.mailQuote);
+if (!desktop.mailQuote.includes("$5.00")) die("mailing charge is not $5.00");
 if (desktop.claim !== "Claim this bid") die("missing claim action: " + desktop.claim);
 if (!desktop.source) die("missing source filter");
 if (!desktop.checkout.some((label) => label.includes("Continue to checkout"))) die("missing checkout");
@@ -160,6 +173,33 @@ const rfpCard = await evalJs(`document.querySelector("article.bid").innerText`);
 if (!rfpCard.includes("RFPMart")) die("RFPMart card missing source");
 await evalJs(`document.querySelector("#clear").click()`);
 await waitFor(`!document.querySelector("#count").textContent.includes("of")`, "clear source");
+
+await evalJs(`document.querySelector("a[href^='#bid=']").click()`);
+await waitFor("document.querySelector('#bid-dialog').open", "bid detail");
+await shot("bid-detail.png");
+const detail = await evalJs(`({
+  open: document.querySelector("#bid-dialog").open,
+  title: document.querySelector("#bid-dialog-title").textContent,
+  facts: document.querySelector("#bid-facts").innerText,
+  summary: document.querySelector("#bid-summary").textContent.length,
+  claim: document.querySelector("#bid-dialog-claim").textContent,
+  ai: document.querySelector("#bid-dialog-ai").hidden ? document.querySelector("#bid-dialog-wait").innerText : document.querySelector("#bid-dialog-ai").textContent,
+  original: document.querySelector("#bid-dialog-original").target,
+  hash: location.hash,
+})`);
+console.log("detail", detail.title, detail.hash);
+if (!detail.open || !detail.title) die("detail panel did not open");
+if (!detail.hash.startsWith("#bid=")) die("detail is not linkable: " + detail.hash);
+if (!/Agency|Place|Due/.test(detail.facts)) die("detail is missing the notice facts");
+if (detail.summary < 10) die("detail is missing the description");
+if (detail.claim !== "Claim this bid") die("detail claim button");
+if (!/Coming online soon/.test(detail.ai)) die("detail should offer the waitlist until the API is configured: " + detail.ai);
+const aiHidden = await evalJs(`document.querySelector("#bid-dialog-ai").hidden === true`);
+if (!aiHidden) die("AI pay button is visible while the API is not configured");
+if (detail.original !== "_blank") die("original notice is not a new-tab link");
+await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
+await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }, sessionId);
+await waitFor("!document.querySelector('#bid-dialog').open && !location.hash.startsWith('#bid=')", "escape closes detail");
 
 await evalJs(`document.querySelector("[data-claim]").click()`);
 await waitFor("document.querySelector('#draft-dialog').open && !document.querySelector('#draft-editor').hidden && document.querySelector('#draft-text').value.length > 80", "claim draft");
@@ -187,11 +227,10 @@ await shot("desktop-signup-filled.png");
 await evalJs(`document.querySelector("#bids").scrollIntoView({ behavior: "instant", block: "start" })`);
 await waitFor(`document.querySelector("[data-claim]").textContent.includes("Claimed")`, "claimed label");
 
-await evalJs(`document.querySelector("[data-fill]").click()`);
-await waitFor("document.querySelector('#draft-dialog').open && !document.querySelector('#draft-paywall').hidden", "paywall");
+await evalJs(`document.querySelector(".waitlist").click()`);
+await waitFor("location.hash === '#alerts' && !document.querySelector('#draft-dialog').open", "waitlist");
 const payLink = await evalJs(`window.IW_CONFIG && window.IW_CONFIG.stripePaymentLink`);
 if (!String(payLink).startsWith("https://buy.stripe.com/")) die("expected the public Stripe payment link");
-await evalJs(`document.querySelector("#draft-dialog").close()`);
 
 async function shot(name) {
   const png = await send("Page.captureScreenshot", { format: "png" }, sessionId);
@@ -208,6 +247,16 @@ await shot("mobile-top.png");
 await evalJs(`document.querySelector("#bids").scrollIntoView()`);
 await new Promise((r) => setTimeout(r, 200));
 await shot("mobile-bids.png");
+await evalJs(`document.querySelector("a[href^='#bid=']").click()`);
+await waitFor("document.querySelector('#bid-dialog').open", "mobile detail");
+await evalJs(`document.querySelector("#bid-dialog-claim").scrollIntoView({ block: "center" })`);
+await shot("mobile-bid-detail.png");
+const mobileDetail = await evalJs(`({
+  open: document.querySelector("#bid-dialog").open,
+  width: document.querySelector("#bid-dialog").getBoundingClientRect().width,
+})`);
+if (!mobileDetail.open || mobileDetail.width > 390) die("detail panel is wider than the phone: " + mobileDetail.width);
+await evalJs(`document.querySelector("#bid-dialog").close()`);
 
 await send("Emulation.setDeviceMetricsOverride", {
   width: 1280, height: 900, deviceScaleFactor: 1, mobile: false,
@@ -219,6 +268,10 @@ await shot("desktop-pricing.png");
 const grammar = await evalJs(`[...document.querySelectorAll(".left")].some(el => el.textContent === "1 days left")`);
 if (grammar) die("day count should be singular");
 
+await evalJs(`document.querySelector("#mail-submit").scrollIntoView({ behavior: "instant", block: "center" })`);
+await shot("mail-quote.png");
+const mailShot = await evalJs(`document.querySelector("#mail-quote-out").innerText.includes("Mailing charge") && document.querySelector("#mail-submit").textContent.includes("Coming online soon")`);
+if (!mailShot) die("mail quote was not on the page");
 console.log("e2e ok", desktop.bids, "bids");
 ws.close();
 chrome.kill("SIGKILL");

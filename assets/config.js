@@ -42,6 +42,12 @@ window.IW_CONFIG = {
   aiDraftEndpoint: "api/draft",
   publicConfigEndpoint: "api/public-config",
 
+  // HTTPS origin of the PHP API, with no trailing slash.
+  // Example: "https://bids.itsworkplace.com"
+  // Leave empty until that server is deployed. The AI and mail buttons then
+  // say they are coming online instead of calling a missing host.
+  apiBase: "",
+
   // Optional public HTTPS endpoint for a claim notice. Empty by default.
   // The browser POSTs JSON: { bidId, title, agency, deadline, claimedAt, contactEmail? }.
   // Never put an API key, password, or other secret in this file.

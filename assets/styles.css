@@ -58,6 +58,7 @@ p { margin: 0 0 12px; }
 .nav nav a:hover { text-decoration: underline; }
 .nav nav a.btn { color: #fff; }
 
+[hidden] { display: none !important; }
 .btn, .btn.ghost {
   display: inline-flex; align-items: center; justify-content: center;
   min-height: 44px; padding: 10px 16px; border-radius: 8px;
@@ -204,6 +205,23 @@ pre {
 }
 code { font-size: 0.92em; }
 .noscript { background: #fff; padding: 16px 0; }
+.sources-coverage { background: #fff; border-top: 1px solid var(--line); padding: 8px 0 36px; }
+.sources-coverage summary { width: min(1120px, calc(100% - 40px)); margin: 0 auto; cursor: pointer; font-weight: 700; font-size: clamp(22px, 3vw, 28px); padding: 18px 0; }
+.sources-coverage .wrap { padding-bottom: 8px; }
+.bid-body { cursor: pointer; }
+.facts { display: grid; grid-template-columns: 9rem 1fr; gap: 6px 12px; margin: 0 0 12px; }
+.facts dt { color: var(--muted); font-size: 14px; }
+.facts dd { margin: 0; }
+.quote-lines { margin: 0; }
+.quote-lines p { margin: 0 0 4px; }
+.waitlist { font-weight: 700; }
+@media (max-width: 760px) {
+  #bid-dialog { width: calc(100% - 12px); margin: 6px auto; }
+  #bid-dialog .dialog-actions { flex-direction: column; }
+  #bid-dialog .dialog-actions .btn { width: 100%; }
+  .facts { grid-template-columns: 1fr; gap: 0 0; }
+  .facts dt { margin-top: 8px; }
+}
 .freshness { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 12px 0; }
 .freshness article { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 .freshness h3 { font-size: 15px; margin: 0 0 4px; }

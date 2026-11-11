@@ -1,5 +1,9 @@
 /** Tenant theme, alerts, coverage, and mailing. No API keys live here. */
 
+import { quoteLines, quoteMail } from "./quote.js";
+
+let productHooks = {};
+
 const $ = (id) => document.getElementById(id);
 
 export function tenantSlug() {
@@ -44,10 +48,55 @@ export async function loadTenant() {
   return tenant;
 }
 
+export function siteApiBase() {
+  const raw = String(window.IW_CONFIG?.apiBase || "").trim().replace(/\/$/, "");
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+    if (url.protocol !== "https:" && !local) return "";
+    return raw;
+  } catch {
+    return "";
+  }
+}
+
 function api(tenant, path) {
-  const base = String(tenant.apiBase || "").replace(/\/$/, "");
+  const base = siteApiBase();
   if (base) return base + path;
   return new URL(path.replace(/^\//, ""), document.baseURI).href;
+}
+
+function money(cents) {
+  return `$${(Number(cents) / 100).toFixed(2)}`;
+}
+
+function feesFor(tenant) {
+  const mail = tenant.mail || {};
+  return {
+    firstClassCents: mail.firstClassCents ?? 78,
+    certifiedCents: mail.certifiedCents ?? 500,
+    returnReceiptCents: mail.returnReceiptCents ?? 250,
+    mailingChargeCents: mail.mailingChargeCents ?? 500,
+    perPageCents: mail.perPageCents ?? 15,
+    serviceFeeCents: mail.serviceFeeCents ?? 500,
+  };
+}
+
+function paintQuote(quote) {
+  const out = $("mail-quote-out");
+  if (!out) return;
+  const rows = quoteLines(quote).map(([label, cents]) => `<p>${label} ${money(cents)}</p>`).join("");
+  out.innerHTML = `${rows}<p><b>Total ${money(quote.total)}</b></p><p>${quote.note}</p>`;
+}
+
+function localQuote(tenant) {
+  return quoteMail(
+    feesFor(tenant),
+    1,
+    $("mail-class")?.value || "firstclass",
+    Boolean($("mail-receipt")?.checked),
+  );
 }
 
 async function postJson(url, body) {
@@ -60,7 +109,8 @@ async function postJson(url, body) {
   return { res, data };
 }
 
-export function bindProduct(tenant) {
+export function bindProduct(tenant, hooks = {}) {
+  productHooks = hooks;
   const signup = $("signup");
   if (signup) {
     signup.addEventListener("submit", async (event) => {
@@ -89,10 +139,28 @@ export function bindProduct(tenant) {
 
   const quoteBtn = $("mail-quote");
   const form = $("mail-form");
+  const submit = $("mail-submit");
+  if (!siteApiBase() && submit) submit.textContent = "Coming online soon";
   if (quoteBtn && form) {
-    quoteBtn.addEventListener("click", () => requestQuote(tenant, false));
+    const showLocal = () => {
+      paintQuote(localQuote(tenant));
+      const status = $("mail-status");
+      if (status && !siteApiBase()) status.textContent = "Quote for 1 page at the configured rates. Nothing has been charged.";
+    };
+    showLocal();
+    $("mail-class")?.addEventListener("change", showLocal);
+    $("mail-receipt")?.addEventListener("change", showLocal);
+    quoteBtn.addEventListener("click", () => {
+      if (!siteApiBase()) showLocal();
+      else requestQuote(tenant, false);
+    });
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (!siteApiBase()) {
+        showLocal();
+        $("mail-status").textContent = "Coming online soon. The quote is shown above. Nothing was charged.";
+        return;
+      }
       requestQuote(tenant, true);
     });
   }
@@ -108,7 +176,6 @@ export function bindProduct(tenant) {
 
 async function requestQuote(tenant, pay) {
   const status = $("mail-status");
-  const out = $("mail-quote-out");
   status.textContent = pay ? "Checking the file and opening Stripe…" : "Getting a quote…";
   const address = (prefix) => ({
     name: $(prefix + "-name").value,
@@ -147,8 +214,7 @@ async function requestQuote(tenant, pay) {
     });
     if (!quoted.res.ok) throw new Error(quoted.data.error || "No quote.");
     const q = quoted.data;
-    const money = (cents) => `$${(cents / 100).toFixed(2)}`;
-    out.textContent = `Postage ${money(q.postage)} + return receipt ${money(q.returnReceipt)} + pages ${money(q.pages)} + service fee ${money(q.serviceFee)} = ${money(q.total)}. ${q.note}`;
+    paintQuote(q);
     if (!pay) {
       status.textContent = "Quote only. Nothing has been mailed or charged.";
       return;
@@ -176,6 +242,20 @@ async function pollOrder(tenant, sessionId, kind) {
     try {
       const res = await fetch(api(tenant, "/api/orders/status?session_id=" + encodeURIComponent(sessionId)));
       const data = await res.json().catch(() => ({}));
+      if (kind === "bid" && res.ok && (data.status === "paid" || data.status === "drafted" || data.status === "needs_review")) {
+        const drafted = await postJson(api(tenant, "/api/draft"), { sessionId });
+        if (drafted.res.ok && drafted.data.draft) {
+          const paying = JSON.parse(sessionStorage.getItem("iw-paying") || "{}");
+          productHooks.onPaidDraft?.({
+            bidId: drafted.data.bidId || data.bidId || paying.id || "",
+            title: paying.title || data.title || "",
+            draft: drafted.data.draft,
+            email: paying.email || "",
+          });
+          if (status) status.textContent = "AI draft, review before submitting. Our team was notified.";
+          return;
+        }
+      }
       if (res.ok && data.draft && $("draft-text")) {
         $("draft-text").value = data.draft;
         if ($("draft-editor")) $("draft-editor").hidden = false;
@@ -194,11 +274,15 @@ async function pollOrder(tenant, sessionId, kind) {
 }
 
 export async function payForBid(tenant, bid) {
-  const status = $("draft-status");
+  const status = $("draft-status") || $("bid-dialog-note");
+  if (!siteApiBase()) {
+    if (status) status.textContent = "Coming online soon, join the waitlist.";
+    return;
+  }
   if (status) status.textContent = "Opening Stripe for this bid…";
-  const { res, data } = await postJson(api(tenant, "/api/checkout/bid"), {
+  const { res, data } = await postJson(api(tenant, "/api/checkout"), {
     tenant: tenant.slug,
-    email: $("bid-email")?.value || $("claim-email")?.value || "",
+    email: bid.email || $("bid-email")?.value || $("claim-email")?.value || "",
     company: $("bid-company")?.value || "",
     capabilities: $("bid-capabilities")?.value || "",
     pastPerformance: $("bid-past")?.value || "",

@@ -7,18 +7,21 @@ import { isAllowedUrl, politeFetch, readRobots } from "../feed/robots.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const DOMAINS = [
-  ["NY", "data.ny.gov"],
-  ["TX", "data.texas.gov"],
-  ["WA", "data.wa.gov"],
-  ["OR", "data.oregon.gov"],
-  ["CO", "data.colorado.gov"],
-  ["IL", "data.illinois.gov"],
-  ["MO", "data.mo.gov"],
-  ["PA", "data.pa.gov"],
-  ["NJ", "data.nj.gov"],
   ["CT", "data.ct.gov"],
   ["MI", "data.michigan.gov"],
   ["MD", "opendata.maryland.gov"],
+];
+/** Checked public catalogs. None of these is an open solicitation file, so the daily job does not guess the first search hit. */
+const NO_FEED = [
+  ["NY", "data.ny.gov", "No open-solicitation file. Catalog hits are surplus sales, capital projects, and authority procurement reports. NYSCR is not open data."],
+  ["TX", "data.texas.gov", "No statewide solicitation file. The ESBD portal is not an open feed. TxDOT lettings stay in the separate TxDOT source."],
+  ["WA", "data.wa.gov", "No open-bid dataset. The portal search returns a vendor list, not current solicitations. WEBS is not an open feed."],
+  ["OR", "data.oregon.gov", "No open-bid dataset. OregonBuys is not an open feed."],
+  ["CO", "data.colorado.gov", "No open-bid dataset. Catalog hits for solicitation are charity filings, not procurement."],
+  ["IL", "data.illinois.gov", "No open-bid dataset. Future Solicitations are anticipated projects without deadlines, and BidBuy needs a login."],
+  ["MO", "data.mo.gov", "No open-bid dataset. MissouriBUYS is not an open feed."],
+  ["PA", "data.pa.gov", "No open-bid dataset. eMarketplace is not an open feed."],
+  ["NJ", "data.nj.gov", "No open-bid dataset. NJSTART is not an open feed."],
 ];
 const CKAN = [["CA", "https://data.ca.gov"]];
 const WANT = /bid|solicitation|rfp|procurement opportunit|open opportunit/i;
@@ -89,6 +92,18 @@ async function ckanCatalog(origin) {
 
 const sources = [];
 const bids = [];
+
+for (const [state, domain, reason] of NO_FEED) {
+  sources.push({
+    id: `state-${state.toLowerCase()}`,
+    name: `${state} open data`,
+    status: "no-feed",
+    count: 0,
+    updated: new Date().toISOString(),
+    reason: `${reason} ${domain} was checked and not copied.`,
+  });
+  console.log(`no-feed\t${domain}`);
+}
 
 for (const [state, domain] of DOMAINS) {
   let found = [];
