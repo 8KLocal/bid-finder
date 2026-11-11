@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-11T17:48:51.841Z",
+  "updated": "2026-11-11T17:52:25.620Z",
   "disclaimer": "Jurisdiction list is the Census Bureau Vintage 2024 subcounty population file (states, active counties, incorporated places, and active minor civil divisions). A row is covered only after its public bid page is fetched under robots.txt. This is not 100% of U.S. governments and not 100% of open bids.",
   "census": "https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/cities/totals/sub-est2024.csv",
   "totals": {
@@ -23,8 +23,10 @@
   "specialsNote": "School districts, universities, transit, housing authorities, and utilities are a short seeded list, not a complete census.",
   "statusCounts": {
     "verified": 45,
-    "unseen": 34809,
+    "unseen": 34797,
     "blocked": 26,
+    "needs-adapter": 9,
+    "no-bid-page": 3,
     "unreachable": 3
   },
   "checkedNote": "verified means the public URL responded and robots.txt allowed that fetch. It does not mean every bid on that site was collected.",
@@ -36,10 +38,10 @@
   "priorityStatus": {
     "county": {
       "ok": 0,
-      "blocked": 0,
-      "no-bid-page": 3,
-      "needs-adapter": 9,
-      "unseen": 488
+      "blocked": 3,
+      "no-bid-page": 13,
+      "needs-adapter": 21,
+      "unseen": 463
     },
     "place": {
       "ok": 0,
