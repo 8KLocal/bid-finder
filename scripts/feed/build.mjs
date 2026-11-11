@@ -93,8 +93,9 @@ if (rfp?.bids) {
   }
 }
 
-const open = readJson("data/raw/opendata.json");
-if (open?.sources) {
+function addOpenFile(rel) {
+  const open = readJson(rel);
+  if (!open?.sources) return false;
   const bySource = new Map();
   for (const bid of open.bids || []) {
     const normalized = normalizeBid(bid, { source: bid.source, state: bid.state, assumeUS: true, now });
@@ -111,9 +112,12 @@ if (open?.sources) {
       reason: source.reason || "",
       bids: bySource.get(source.name) || [],
     seen: source.count || 0,
-  });
+    });
   }
-} else {
+  return true;
+}
+
+if (!addOpenFile("data/raw/opendata.json")) {
   for (const [id, name] of [
     ["la-ramp", "LA RAMP"],
     ["delaware", "Delaware Bids"],
@@ -133,6 +137,10 @@ if (open?.sources) {
       seen: previous.length,
     });
   }
+}
+
+for (const rel of ["data/raw/state-data.json", "data/raw/federal.json", "data/raw/jurisdictions.json"]) {
+  addOpenFile(rel);
 }
 
 const platformPath = path.join(root, "data", "sources", "platform-status.json");

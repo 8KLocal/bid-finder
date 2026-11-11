@@ -233,14 +233,25 @@ export async function renderCoverage() {
     const totals = data.totals || {};
     const verified = data.verified || {};
     const line = (label, key) => `<div><b>${Number(verified[key] || 0).toLocaleString()}</b><span>of ${Number(totals[key] || verified[key] || 0).toLocaleString()} ${label}</span></div>`;
+    const priorityLine = (label, bucket, total) => {
+      const counts = bucket || {};
+      const ok = Number(counts.ok || 0);
+      return `<div><b>${ok.toLocaleString()}</b><span>${label} with a public list read, of ${Number(total || 0).toLocaleString()} largest</span></div>`;
+    };
     stats.innerHTML = [
       line("states", "state"),
       line("counties", "county"),
       line("municipalities", "place"),
-      line("townships", "township"),
+      priorityLine("counties", data.priorityStatus?.county, data.priority?.counties),
+      priorityLine("cities", data.priorityStatus?.place, data.priority?.places),
     ].join("");
-    note.textContent = data.disclaimer || "";
-    if (data.specialsNote) note.textContent += " " + data.specialsNote;
+    const bits = [data.disclaimer || "", data.priority?.note || "", data.specialsNote || ""].filter(Boolean);
+    const county = data.priorityStatus?.county;
+    const place = data.priorityStatus?.place;
+    if (county && place) {
+      bits.push(`Among the largest counties: ${county.ok || 0} read, ${county.blocked || 0} blocked, ${county["no-bid-page"] || 0} with no bid page, ${county["needs-adapter"] || 0} need another adapter, ${county.unseen || 0} not checked yet. Cities: ${place.ok || 0} read, ${place.blocked || 0} blocked, ${place["no-bid-page"] || 0} with no bid page, ${place["needs-adapter"] || 0} need another adapter, ${place.unseen || 0} not checked yet.`);
+    }
+    note.textContent = bits.join(" ");
   } catch {
     note.textContent = "Coverage figures are published with the daily feed.";
   }

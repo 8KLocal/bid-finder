@@ -79,6 +79,7 @@ jobs:
           if [ -f /tmp/feed-parts/feed-sam/bids.json ]; then cp /tmp/feed-parts/feed-sam/bids.json data/bids.json; fi
           if [ -f /tmp/feed-parts/feed-rfpmart/rfp-bids.json ]; then cp /tmp/feed-parts/feed-rfpmart/rfp-bids.json data/rfp-bids.json; fi
           copy_dir /tmp/feed-parts/feed-opendata/raw data/raw
+          copy_dir /tmp/feed-parts/feed-discover/raw data/raw
           copy_dir /tmp/feed-parts/feed-discover/sources data/sources
           if [ -f /tmp/feed-parts/feed-platforms/sources/platform-status.json ]; then
             mkdir -p data/sources
@@ -117,10 +118,6 @@ jobs:
           else
             git config user.name "bid-finder-bot"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -F - <<EOF
-          Refresh public bid feed $(date -u +%F)
-
-          $(cat /tmp/feed-counts.txt)
-          EOF
+            git commit -m "Refresh public bid feed $(date -u +%F)" -m "$(cat /tmp/feed-counts.txt)"
             git push origin HEAD:main
           fi

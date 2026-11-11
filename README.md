@@ -54,7 +54,7 @@ That serves the site and the `/api` routes at http://127.0.0.1:8080
 
 ## Coverage, alerts, AI drafts, and mail
 
-`data/sources/registry/` lists Census Vintage 2024 states, counties, incorporated places, and townships, plus a short seeded list of school, university, transit, housing, and utility homepages. `scripts/sources/discover.mjs` checks the next batch of bid URLs (highest population first) and records robots.txt blocks. `data/sources/coverage.json` is the honest covered-versus-listed count. The home page shows it.
+`data/sources/registry/` lists Census Vintage 2024 states, counties, incorporated places, and townships. Official websites for the 500 largest counties and 1,000 largest cities come from Wikidata, not guessed domains. Each day `discover-jurisdictions.mjs` checks the next batch: homepage, sitemap, and the site's own search, then robots.txt. A simple HTML table, RSS feed, or calendar can be read. BidNet, Bonfire, and the other hosted platforms are not copied. The coverage panel counts ok, blocked, no bid page, and needs adapter. Grants.gov and USAspending are skipped because they are not open bids. GSA eBuy is login-only. Federal Register solicitation notices and state open-data bid datasets are collected when the portal allows them.
 
 `server/` is the PHP API for email alerts, the $20 Grok draft (after a Stripe webhook), and “Mail it for me” (LetterStream, test mode by default). See `server/README.md`. White-label tenants are in `docs/WHITE_LABEL.md`. Sources and the takedown address are on `legal.html`.
 
