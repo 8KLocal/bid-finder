@@ -124,7 +124,6 @@
           <button class="text-btn" type="button" id="clear" hidden>Clear filters</button>
         </div>
       </form>
-      <div id="freshness" class="freshness" aria-label="Source freshness"></div>
       <p class="count" id="count" aria-live="polite"></p>
       <div id="list" class="list" aria-busy="true">
         <p class="empty">Loading the public list…</p>
@@ -132,14 +131,6 @@
     </div>
   </section>
 
-  <section id="coverage" class="how">
-    <div class="wrap">
-      <h2>Coverage</h2>
-      <p class="muted" id="coverage-note">Loading the jurisdiction list…</p>
-      <div id="coverage-stats" class="stats"></div>
-      <p class="muted small">A state, county, or city is covered only when its public bid page was fetched and robots.txt allowed it. Notices below are a separate count. This is not 100% of U.S. bids.</p>
-    </div>
-  </section>
 
   <section id="alerts" class="how">
     <div class="wrap">
@@ -164,7 +155,7 @@
   <section id="mail" class="how">
     <div class="wrap">
       <h2>Mail it for me</h2>
-      <p class="muted">Upload a PDF or use the draft you are editing. We quote postage, a per-page amount, and our service fee. Nothing is mailed until Stripe confirms payment.</p>
+        <p class="muted">Upload a PDF or use the draft you are editing. The quote is postage, a $5 mailing charge, then per-page printing. Nothing is mailed until Stripe confirms payment.</p>
       <form id="mail-form" class="stack">
         <label class="field"><span>PDF packet</span><input id="mail-pdf" type="file" accept="application/pdf"></label>
         <label class="chk"><input id="mail-use-draft" type="checkbox"> Use the draft open in the editor instead</label>
@@ -192,8 +183,8 @@
         </label>
         <label class="chk"><input id="mail-receipt" type="checkbox"> Certified return receipt</label>
         <button class="btn ghost" type="button" id="mail-quote">Get a quote</button>
-        <p id="mail-quote-out" class="status"></p>
-        <button class="btn" type="submit">Pay and mail</button>
+        <div id="mail-quote-out" class="quote-lines"></div>
+        <button class="btn" type="submit" id="mail-submit">Pay and mail</button>
         <p class="status" id="mail-status" role="status"></p>
         <p class="muted small">Notarized documents still need a third-party notary before you upload them. We do not guarantee delivery times or a bid award. Deadlines are yours. It's Workplace is our offshore team handling the business.</p>
       </form>
@@ -207,7 +198,7 @@
         <article>
           <p class="step">01</p>
           <h3>Official notices only</h3>
-          <p>Notices come from the public sources listed above, refreshed on a daily schedule. Each bid links to the original notice. We do not claim this is every U.S. bid.</p>
+          <p>Notices come from the public sources in Sources and coverage, refreshed on a daily schedule. Each bid opens on this page and links to the original notice. We do not claim this is every U.S. bid.</p>
         </article>
         <article>
           <p class="step">02</p>
@@ -258,6 +249,15 @@
       </div>
     </div>
   </section>
+  <details id="coverage" class="sources-coverage">
+    <summary>Sources and coverage</summary>
+    <div class="wrap">
+      <div id="freshness" class="freshness" aria-label="Source freshness"></div>
+      <p class="muted" id="coverage-note">Loading the jurisdiction list…</p>
+      <div id="coverage-stats" class="stats"></div>
+      <p class="muted small">A state, county, or city is covered only when its public bid page was fetched and robots.txt allowed it. This is not 100% of U.S. bids.</p>
+    </div>
+  </details>
 </main>
 
 <footer class="foot">
@@ -268,6 +268,27 @@
     <p class="muted small">© <span id="yr"></span> ITS WORKPLACE INC</p>
   </div>
 </footer>
+
+<dialog id="bid-dialog" aria-labelledby="bid-dialog-title">
+  <div class="dialog-card">
+    <header class="dialog-head">
+      <div>
+        <p class="eyebrow">Public notice</p>
+        <h2 id="bid-dialog-title"></h2>
+      </div>
+      <button type="button" class="icon-btn" id="bid-dialog-close" aria-label="Close bid">Close</button>
+    </header>
+    <dl class="facts" id="bid-facts"></dl>
+    <p id="bid-summary"></p>
+    <div class="dialog-actions">
+      <button class="btn" type="button" id="bid-dialog-claim">Claim this bid</button>
+      <button class="btn" type="button" id="bid-dialog-ai">Fill out with AI, $20</button>
+      <a class="btn ghost" id="bid-dialog-original" target="_blank" rel="noopener">Open original notice</a>
+    </div>
+    <p id="bid-dialog-wait" class="status" hidden><a href="#alerts">Coming online soon, join the waitlist</a></p>
+    <p class="status" id="bid-dialog-note"></p>
+  </div>
+</dialog>
 
 <dialog id="draft-dialog" aria-labelledby="draft-title">
   <div class="dialog-card">

@@ -6,6 +6,6 @@
   "scripts": {
     "start": "node scripts/dev-server.mjs",
     "fetch:rfp": "node scripts/fetch-rfp-bids.js",
-    "test": "node --test --test-concurrency=1 tests/server.test.mjs tests/rfp-bids.test.mjs tests/normalize.test.mjs tests/robots.test.mjs tests/listing.test.mjs && python3 -m unittest tests.test_fetch_bids && php server/tests/run.php"
+    "test": "node --test --test-concurrency=1 tests/server.test.mjs tests/rfp-bids.test.mjs tests/normalize.test.mjs tests/robots.test.mjs tests/listing.test.mjs tests/quote.test.mjs && python3 -m unittest tests.test_fetch_bids && php server/tests/run.php"
   }
 }

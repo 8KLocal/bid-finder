@@ -11,12 +11,12 @@ The GitHub Pages site is static. This folder is the API for alerts, the $20 AI d
 | `POST /api/preferences` | Update interests with the token from the email |
 | `GET` or `POST /api/unsubscribe` | One-click unsubscribe |
 | `POST /api/claim` | Store a claim and email ops |
-| `POST /api/checkout/bid` | Stripe Checkout, $20 (or the tenant price), mode `payment` |
+| `POST /api/checkout` and `POST /api/checkout/bid` | Stripe Checkout, $20 (or the tenant price), mode `payment` |
 | `POST /api/checkout/mail` | Stripe Checkout for a quoted letter |
 | `POST /api/stripe/webhook` | `checkout.session.completed`, signature checked |
 | `GET /api/orders/status` | Draft text or mail job id after payment |
 | `POST /api/mail/upload` | PDF or draft text. Validates type, size, pages, no password |
-| `POST /api/mail/quote` | Postage + page cost + service fee |
+| `POST /api/mail/quote` | Postage, flat mailing charge (default $5), per-page printing, and service fee |
 | `POST /api/draft` | Returns a draft only after payment. Does not call Grok itself |
 
 Grok runs inside the webhook, after Stripe marks the session paid. LetterStream runs in that same webhook for mail orders, and only then. `LETTERSTREAM_TEST=1` (the default in the example config) does not call LetterStream.
@@ -58,7 +58,7 @@ The Starter subscription stays a Stripe Payment Link in `assets/config.js`. The 
 4. Make `server/storage` writable by PHP (`chmod 775`). The SQLite file and PDFs are created there. `storage/.htaccess` denies web access; the document root should still be `public/`.
 5. Confirm `https://bids.itsworkplace.com/api/health` returns `{"ok":true}`.
 6. In Stripe, add an endpoint `https://bids.itsworkplace.com/api/stripe/webhook` for `checkout.session.completed`. Put the signing secret in `STRIPE_WEBHOOK_SECRET`.
-7. Set `apiBase` in `tenants/itsworkplace.json` to `https://bids.itsworkplace.com` and republish the Pages site so the browser can call this host.
+7. Set `apiBase` in `assets/config.js` to `https://bids.itsworkplace.com` (no trailing slash) and republish the Pages site. The AI and mail buttons call that host. While it is empty they say they are coming online, and Mail it for me still shows the quote. `tenants/<slug>.json` `apiBase` is only the optional claim-webhook host.
 8. LetterStream: create an account for this product, request API access, and paste that account’s API ID and key. Do not reuse another company’s keys. Keep `LETTERSTREAM_TEST=1` until a paid test order looks right, then set it to `0`. LetterStream must be able to fetch `APP_BASE_URL/api/mail/file?token=…` over HTTPS.
 9. Cron, using the host’s PHP 8 binary and the real path:
 
@@ -82,4 +82,4 @@ php server/tests/run.php
 
 ## Mail classes
 
-First-Class maps to LetterStream `firstclass`. Certified with return receipt maps to `certified`. Certified without it maps to `certnoerr`. The quote numbers are the tenant’s configured cents, not a live USPS rate.
+First-Class maps to LetterStream `firstclass`. Certified with return receipt maps to `certified`. Certified without it maps to `certnoerr`. The quote is postage, then a flat mailing charge (`mail.mailingChargeCents`, default 500), then per-page printing. Stripe Checkout charges that total, with the mailing charge as its own line. The numbers are the tenant’s configured cents, not a live USPS rate.

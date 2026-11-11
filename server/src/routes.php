@@ -38,7 +38,7 @@ function route_dispatch(string $method, string $path): void
         route_claim();
         return;
     }
-    if ($path === '/api/checkout/bid' && $method === 'POST') {
+    if (($path === '/api/checkout' || $path === '/api/checkout/bid') && $method === 'POST') {
         route_checkout_bid();
         return;
     }
@@ -400,21 +400,34 @@ function route_checkout_mail(): void
         ->execute([$tenant['slug'], 'mail', $email, 'Mail a bid packet', $quote['total'], 'pending', $detail, gmdate('c')]);
     $orderId = (string) $pdo->lastInsertId();
     $site = rtrim((string) app_config()['public_site_url'], '/');
-    $result = stripe_checkout([
+    $mailing = (int) ($quote['mailingCharge'] ?? 0);
+    $rest = max(0, (int) $quote['total'] - $mailing);
+    $stripe = [
         'mode' => 'payment',
         'customer_email' => $email,
         'success_url' => $site . '/?mail_paid=1&session_id={CHECKOUT_SESSION_ID}#mail',
         'cancel_url' => $site . '/?mail_paid=0#mail',
         'client_reference_id' => $orderId,
-        'line_items[0][quantity]' => '1',
-        'line_items[0][price_data][currency]' => 'usd',
-        'line_items[0][price_data][unit_amount]' => (string) $quote['total'],
-        'line_items[0][price_data][product_data][name]' => 'Mail a bid packet (' . $pages . ' pages)',
         'metadata[kind]' => 'mail',
         'metadata[order_id]' => $orderId,
         'metadata[tenant]' => $tenant['slug'],
         'metadata[email]' => $email,
-    ]);
+    ];
+    $line = 0;
+    if ($rest > 0) {
+        $stripe["line_items[$line][quantity]"] = '1';
+        $stripe["line_items[$line][price_data][currency]"] = 'usd';
+        $stripe["line_items[$line][price_data][unit_amount]"] = (string) $rest;
+        $stripe["line_items[$line][price_data][product_data][name]"] = 'Mail a bid packet (' . $pages . ' pages)';
+        $line++;
+    }
+    if ($mailing > 0) {
+        $stripe["line_items[$line][quantity]"] = '1';
+        $stripe["line_items[$line][price_data][currency]"] = 'usd';
+        $stripe["line_items[$line][price_data][unit_amount]"] = (string) $mailing;
+        $stripe["line_items[$line][price_data][product_data][name]"] = 'Mailing charge';
+    }
+    $result = stripe_checkout($stripe);
     if ($result['status'] === 200 && !empty($result['body']['id'])) {
         $pdo->prepare('UPDATE orders SET stripe_session = ? WHERE id = ?')->execute([$result['body']['id'], $orderId]);
     }
@@ -515,7 +528,7 @@ function route_order_status(): void
         http_json(400, ['error' => 'Missing a Checkout session id.']);
         return;
     }
-    $stmt = app_db()->prepare('SELECT status, kind, title, draft, detail, amount_cents FROM orders WHERE stripe_session = ?');
+    $stmt = app_db()->prepare('SELECT status, kind, title, bid_id, draft, detail, amount_cents FROM orders WHERE stripe_session = ?');
     $stmt->execute([$sid]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
@@ -527,6 +540,7 @@ function route_order_status(): void
         'status' => $row['status'],
         'kind' => $row['kind'],
         'title' => $row['title'],
+        'bidId' => $row['bid_id'] ?? '',
         'amountCents' => (int) $row['amount_cents'],
         'draft' => in_array($row['status'], ['drafted', 'needs_review'], true) ? $row['draft'] : '',
         'jobId' => $detail['job_id'] ?? '',
@@ -542,7 +556,7 @@ function route_draft(): void
     }
     $body = http_read_json();
     $sid = (string) ($body['sessionId'] ?? '');
-    $stmt = app_db()->prepare('SELECT status, draft FROM orders WHERE stripe_session = ? AND kind = ?');
+    $stmt = app_db()->prepare('SELECT status, draft, bid_id FROM orders WHERE stripe_session = ? AND kind = ?');
     $stmt->execute([$sid, 'bid']);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row || !in_array($row['status'], ['drafted', 'needs_review', 'paid'], true)) {
@@ -553,7 +567,12 @@ function route_draft(): void
         http_json(202, ['status' => 'paid', 'error' => 'Payment is confirmed. The draft is still being written.']);
         return;
     }
-    http_json(200, ['draft' => $row['draft'], 'source' => 'grok', 'note' => 'AI draft, review before submitting.']);
+    http_json(200, [
+        'draft' => $row['draft'],
+        'bidId' => $row['bid_id'] ?? '',
+        'source' => 'grok',
+        'note' => 'AI draft, review before submitting.',
+    ]);
 }
 
 function route_mail_file(): void

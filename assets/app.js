@@ -1,7 +1,7 @@
 import { isPastDue } from "./deadlines.js";
 import { fallbackDraft } from "./draft.js";
 import { claimPayload, mergeBidLists, safeWebhookUrl } from "./list.js";
-import { bindProduct, loadTenant, payForBid, renderCoverage, renderFreshness } from "./product.js";
+import { bindProduct, loadTenant, payForBid, renderCoverage, renderFreshness, siteApiBase } from "./product.js";
 
 const CORE = new Set(["541511", "541512", "541513", "541519", "518210", "511210", "519130"]);
 const DIGITAL = /\b(websites?|web[- ]based|web[- ]apps?|web[- ]applications?|software|saas|mobile apps?|mobile applications?|application development|application software|information technology|information systems?|help[- ]desks?|cybersecurity|cyber security|cloud computing|devops|web hosting|data hosting|programmers?|software developers?|user interface|user experience|sharepoint|servicenow|salesforce|digital services?|computer systems?|custom computer)\b/i;
@@ -195,11 +195,16 @@ function render(resetPage = true) {
       .filter(Boolean)
       .join(" · ");
     const source = b.source || "SAM.gov";
+    const saved = claims[b.id];
+    const ai = siteApiBase()
+      ? `<button class="btn" type="button" data-ai="${esc(b.id)}">Fill out with AI, $20</button>`
+      : `<a class="waitlist" href="#alerts">Coming online soon, join the waitlist</a>`;
     return `<article class="bid${claimed ? " claimed" : ""}">
-      <div>
-        <h3><a href="${esc(b.link || b.url)}" target="_blank" rel="noopener">${esc(b.title)}</a></h3>
+      <div class="bid-body" data-open-bid="${esc(b.id)}">
+        <h3><a href="#bid=${encodeURIComponent(b.id)}">${esc(b.title)}</a></h3>
         <div class="sub">${esc(who || source)}</div>
         ${b.summary ? `<p class="sum">${esc(b.summary)}</p>` : ""}
+        ${saved?.draft ? `<p class="sum">AI draft ready for your review.</p>` : ""}
         <div class="pills">
           <span class="pill">${esc(source)}</span>
           ${b.naics ? `<span class="pill">NAICS ${esc(b.naics)}${b.naicsLabel ? " · " + esc(b.naicsLabel) : ""}</span>` : ""}
@@ -215,7 +220,8 @@ function render(resetPage = true) {
         <div class="due ${when.cls}">${esc(when.due)}</div>
         <div class="left">${esc(when.left)}</div>
         <button class="btn${claimed ? " ghost" : ""}" type="button" data-claim="${esc(b.id)}" aria-pressed="${claimed ? "true" : "false"}">${claimed ? "Claimed" : "Claim this bid"}</button>
-        <button class="btn ghost" type="button" data-fill="${esc(b.id)}">Fill this out with AI</button>
+        ${saved?.draft ? `<button class="btn ghost" type="button" data-view-draft="${esc(b.id)}">View AI draft</button>` : ""}
+        ${ai}
         <a class="btn ghost" href="${esc(b.link || b.url)}" target="_blank" rel="noopener">Original notice</a>
       </div>
     </article>`;
@@ -379,6 +385,49 @@ function showDialog(id) {
   if (!next.open) next.showModal();
 }
 
+function fact(label, value) {
+  if (!value) return "";
+  return `<dt>${esc(label)}</dt><dd>${esc(value)}</dd>`;
+}
+
+function showBidDetail(bid) {
+  activeBid = bid;
+  $("bid-dialog-title").textContent = bid.title || "Bid";
+  const when = dueParts(bid.deadline || bid.due);
+  const posted = bid.posted ? bid.posted : "Not listed";
+  $("bid-facts").innerHTML = [
+    fact("Agency", bid.agency),
+    fact("Place", bid.place || bid.state),
+    fact("Posted", posted),
+    fact("Due", when.due === "No deadline listed" ? "No deadline listed" : `${when.due}. ${when.left}`),
+    fact("NAICS", bid.naics ? `${bid.naics}${bid.naicsLabel ? " · " + bid.naicsLabel : ""}` : ""),
+    fact("Set-aside", bid.setAside && bid.setAside !== "None" ? bid.setAside : ""),
+    fact("Solicitation", bid.solicitation),
+    fact("Contact", bid.contact),
+    fact("Source", bid.source || "SAM.gov"),
+  ].join("");
+  $("bid-summary").textContent = bid.summary || bid.description || "The public extract did not include a description. Read the original notice.";
+  const original = $("bid-dialog-original");
+  original.href = bid.link || bid.url || "#";
+  const ready = Boolean(siteApiBase());
+  $("bid-dialog-ai").hidden = !ready;
+  $("bid-dialog-wait").hidden = ready;
+  const saved = readClaims()[bid.id];
+  $("bid-dialog-note").textContent = saved?.draft ? "An AI draft for this bid is saved in My claimed bids." : "";
+  const hash = "#bid=" + encodeURIComponent(bid.id);
+  if (location.hash !== hash) history.pushState(null, "", hash);
+  const dialog = $("bid-dialog");
+  if (!dialog.open) dialog.showModal();
+}
+
+function openFromHash() {
+  const match = location.hash.match(/^#bid=(.+)$/);
+  if (!match) return;
+  const id = decodeURIComponent(match[1]);
+  const bid = all.find((item) => item.id === id);
+  if (bid) showBidDetail(bid);
+}
+
 function openDraft(bid, opts = {}) {
   activeBid = bid;
   $("draft-bid").textContent = bid.title;
@@ -389,7 +438,16 @@ function openDraft(bid, opts = {}) {
   $("draft-billing").hidden = locked || paid;
   $("draft-title").textContent = opts.force ? "Filled-out draft" : "Fill this out with AI";
   $("claim-note").textContent = opts.note || "";
-  if (!locked) fillDraft(bid);
+  if (!locked) {
+    const saved = readClaims()[bid.id];
+    if (saved?.draft && !opts.regenerate) {
+      $("draft-text").value = saved.draft;
+      $("draft-status").textContent = "AI draft, review before submitting. Our team was notified to review it. Nothing was submitted.";
+      $("draft-progress").textContent = "";
+    } else {
+      fillDraft(bid);
+    }
+  }
   showDialog("draft-dialog");
 }
 
@@ -400,7 +458,12 @@ function claimBid(bid) {
   if (email) localStorage.setItem(EMAIL_KEY, email);
   else localStorage.removeItem(EMAIL_KEY);
   const payload = claimPayload(bid, new Date().toISOString(), email);
-  claims[bid.id] = { ...payload, tenant: tenant.slug || "itsworkplace" };
+  claims[bid.id] = {
+    ...payload,
+    tenant: tenant.slug || "itsworkplace",
+    draft: claims[bid.id]?.draft || "",
+    paid: Boolean(claims[bid.id]?.paid),
+  };
   localStorage.setItem(claimStorageKey(), JSON.stringify(claims));
   const webhook = safeWebhookUrl(cfg.claimWebhookUrl || (String(tenant.apiBase || "").startsWith("https://") ? `${String(tenant.apiBase).replace(/\/$/, "")}/api/claim` : ""));
   let note = "Claimed in this browser. Copy or download the draft. Nothing is submitted to a government portal.";
@@ -478,7 +541,30 @@ async function loadPublishedFeed() {
 async function init() {
   $("yr").textContent = new Date().getFullYear();
   tenant = await loadTenant();
-  bindProduct(tenant);
+  bindProduct(tenant, {
+    onPaidDraft(info) {
+      const bid = all.find((item) => item.id === info.bidId) || {
+        id: info.bidId,
+        title: info.title || "Paid bid",
+        agency: "",
+        due: "",
+        link: "",
+        source: "",
+      };
+      const claims = readClaims();
+      claims[bid.id] = {
+        ...claimPayload(bid, new Date().toISOString(), info.email),
+        draft: info.draft,
+        paid: true,
+        tenant: tenant.slug || "itsworkplace",
+      };
+      localStorage.setItem(claimStorageKey(), JSON.stringify(claims));
+      $("claimed").checked = true;
+      render();
+      $("bids").scrollIntoView();
+      openDraft(bid, { force: true, note: "Paid. The draft is saved under My claimed bids." });
+    },
+  });
   renderCoverage();
   const savedEmail = localStorage.getItem(EMAIL_KEY) || "";
   if (savedEmail && $("claim-email")) $("claim-email").value = savedEmail;
@@ -556,7 +642,7 @@ async function init() {
   if (stateSelect) fillSelect(stateSelect, [...new Set(all.map((b) => b.state).filter(Boolean))].sort());
   if (feedIndex) renderFreshness(feedIndex.sources || []);
   $("meta").textContent = feedIndex
-    ? `${all.length.toLocaleString()} public notices from the sources below · updated ${updated}. This is not every U.S. bid.`
+    ? `${all.length.toLocaleString()} public notices from the sources under Sources and coverage · updated ${updated}. This is not every U.S. bid.`
     : `Public notices · ${updated}. This is not every U.S. bid.`;
   if (rfpMeta.blocked && !rfpCount) {
     showNotice("RFPMart did not return public listings, so All bids is showing SAM.gov notices.", true);
@@ -575,6 +661,7 @@ async function init() {
   $("core").closest("label").hidden = !coreOnlyUseful;
   $("list").removeAttribute("aria-busy");
   render();
+  openFromHash();
 }
 
 document.querySelectorAll("[data-all-bids]").forEach((link) => {
@@ -623,27 +710,69 @@ $("claim-email").addEventListener("change", () => {
   else localStorage.removeItem(EMAIL_KEY);
 });
 $("clear").addEventListener("click", clearFilters);
+function bidById(id) {
+  return all.find((item) => item.id === id);
+}
+
+function startAi(bid) {
+  if (!siteApiBase()) {
+    location.hash = "#alerts";
+    return;
+  }
+  const email = ($("bid-dialog-email")?.value || $("claim-email")?.value || "").trim();
+  if (!email) {
+    showBidDetail(bid);
+    $("bid-dialog-note").textContent = "Enter an email on the claim form, then choose Fill out with AI, $20.";
+    $("claim-email")?.focus();
+    return;
+  }
+  sessionStorage.setItem("iw-paying", JSON.stringify({ id: bid.id, title: bid.title, email }));
+  payForBid(tenant, { ...bid, email });
+}
+
 $("list").addEventListener("click", (event) => {
   if (event.target.closest("#more")) {
     shown += 40;
     render(false);
     return;
   }
+  if (event.target.closest(".waitlist")) return;
   const claim = event.target.closest("[data-claim]");
   if (claim) {
-    const bid = all.find((b) => b.id === claim.dataset.claim);
+    const bid = bidById(claim.dataset.claim);
     if (bid) claimBid(bid);
     return;
   }
-  const button = event.target.closest("[data-fill]");
-  if (!button) return;
-  const bid = all.find((b) => b.id === button.dataset.fill);
-  if (bid) openDraft(bid);
+  const ai = event.target.closest("[data-ai]");
+  if (ai) {
+    const bid = bidById(ai.dataset.ai);
+    if (bid) startAi(bid);
+    return;
+  }
+  const view = event.target.closest("[data-view-draft]");
+  if (view) {
+    const bid = bidById(view.dataset.viewDraft);
+    if (bid) openDraft(bid, { force: true });
+    return;
+  }
+  const opener = event.target.closest("[data-open-bid], a[href^='#bid=']");
+  if (!opener) return;
+  event.preventDefault();
+  const id = opener.getAttribute("data-open-bid") || decodeURIComponent((opener.getAttribute("href") || "").replace(/^#bid=/, ""));
+  const bid = bidById(id);
+  if (bid) showBidDetail(bid);
 });
 document.querySelectorAll("[data-checkout]").forEach((button) => {
   button.addEventListener("click", () => startCheckout(button));
 });
-$("bid-pay")?.addEventListener("click", () => { if (activeBid) payForBid(tenant, activeBid); });
+$("bid-pay")?.addEventListener("click", () => { if (activeBid) startAi(activeBid); });
+$("bid-dialog-close")?.addEventListener("click", () => $("bid-dialog").close());
+$("bid-dialog").addEventListener("close", () => {
+  if (location.hash.startsWith("#bid=")) history.pushState(null, "", location.pathname + location.search);
+});
+$("bid-dialog-claim")?.addEventListener("click", () => { if (activeBid) claimBid(activeBid); });
+$("bid-dialog-ai")?.addEventListener("click", () => { if (activeBid) startAi(activeBid); });
+window.addEventListener("hashchange", openFromHash);
 $("draft-close").addEventListener("click", () => $("draft-dialog").close());
 $("checkout-close").addEventListener("click", () => $("checkout-dialog").close());
 $("checkout-dismiss").addEventListener("click", () => $("checkout-dialog").close());

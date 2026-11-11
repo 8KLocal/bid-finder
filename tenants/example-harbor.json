@@ -27,6 +27,7 @@
     "certifiedCents": 500,
     "returnReceiptCents": 250,
     "perPageCents": 15,
+    "mailingChargeCents": 500,
     "serviceFeeCents": 500
   },
   "example": true

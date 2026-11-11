@@ -51,7 +51,8 @@ foreach ($cases as $case) {
 }
 
 $quote = quote_mail($tenant, 3, 'certified', true);
-check($quote['total'] === $quote['postage'] + $quote['returnReceipt'] + $quote['pages'] + $quote['serviceFee'], 'quote adds up');
+check($quote['mailingCharge'] === 500, 'mailing charge defaults to $5');
+check($quote['total'] === $quote['postage'] + $quote['returnReceipt'] + $quote['mailingCharge'] + $quote['pages'] + $quote['serviceFee'], 'quote adds up');
 check($quote['pages'] === 3 * (int) $tenant['mail']['perPageCents'], 'page cost');
 check($quote['serviceFee'] === (int) $tenant['mail']['serviceFeeCents'], 'service fee shown');
 
