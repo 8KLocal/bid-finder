@@ -6,6 +6,9 @@ No API key. The site lists public notices only — websites, apps, software, and
 related digital or remote services — and links each one to the official notice.
 """
 import csv, io, json, os, re, sys, datetime as dt, urllib.request
+from zoneinfo import ZoneInfo
+
+ET = ZoneInfo("America/New_York")
 
 SRC = ("https://sam.gov/api/prod/fileextractservices/v1/api/download/"
        "Contract%20Opportunities/datagov/ContractOpportunitiesFullCSV.csv?privacy=Public")
@@ -144,6 +147,26 @@ def parse_due(raw):
     return d
 
 
+def deadline_date(raw):
+    """Eastern calendar date of a deadline. A date-only value is that day, not UTC midnight."""
+    text = (raw or "").strip()
+    if not text:
+        return None
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        return dt.date.fromisoformat(text)
+    due = parse_due(text)
+    if due is None:
+        return None
+    return due.astimezone(ET).date()
+
+
+def is_before_today(raw, now):
+    day = deadline_date(raw)
+    if day is None:
+        return False
+    return day < now.astimezone(ET).date()
+
+
 def consider(row, now):
     """Return a bid dict, or None when the notice is out of scope.
 
@@ -158,8 +181,7 @@ def consider(row, now):
         return None
     if (row.get("Type") or "").strip() in SKIP_TYPES:
         return None
-    due = parse_due(row.get("ResponseDeadLine"))
-    if due is None or due < now:
+    if is_before_today(row.get("ResponseDeadLine"), now):
         return None
     title = clean(row.get("Title"), 220)
     summary = clean(row.get("Description"), 320)

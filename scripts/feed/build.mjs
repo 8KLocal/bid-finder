@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { dedupeBids, normalizeBid } from "./normalize.js";
+import { dedupeBids, isExpired, normalizeBid } from "./normalize.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const feedDir = path.join(root, "data", "feed");
@@ -14,6 +14,21 @@ function readJson(rel) {
   const full = path.join(root, rel);
   if (!fs.existsSync(full)) return null;
   return JSON.parse(fs.readFileSync(full, "utf8"));
+}
+
+function previousBids(id) {
+  if (!fs.existsSync(shardDir)) return [];
+  const bids = [];
+  for (const file of fs.readdirSync(shardDir)) {
+    if (!file.startsWith(`${id}-`) || !file.endsWith(".json")) continue;
+    const doc = JSON.parse(fs.readFileSync(path.join(shardDir, file), "utf8"));
+    for (const bid of doc.bids || []) bids.push(bid);
+  }
+  return bids;
+}
+
+function openBids(rows, source) {
+  return rows.map((bid) => normalizeBid(bid, { source, state: bid.state, assumeUS: source !== "RFPMart", now })).filter(Boolean);
 }
 
 const packs = [];
@@ -31,7 +46,24 @@ if (sam?.bids) {
     seen: sam.meta?.seen || sam.bids.length,
   });
 } else {
-  packs.push({ id: "sam", name: "SAM.gov", status: "missing", reason: "data/raw/sam.json was not built on this run.", bids: [], updated: new Date().toISOString(), seen: 0 });
+  const previous = openBids(previousBids("sam"), "SAM.gov");
+  packs.push(previous.length ? {
+    id: "sam",
+    name: "SAM.gov",
+    status: "stale",
+    updated: new Date().toISOString(),
+    reason: "This run did not fetch a new extract. The previous open notices were kept, and anything due before today was removed.",
+    bids: previous,
+    seen: previous.length,
+  } : {
+    id: "sam",
+    name: "SAM.gov",
+    status: "missing",
+    reason: "data/raw/sam.json was not built on this run.",
+    bids: [],
+    updated: new Date().toISOString(),
+    seen: 0,
+  });
 }
 
 const rfp = readJson("data/rfp-bids.json");
@@ -46,6 +78,19 @@ if (rfp?.bids) {
     bids,
     seen: rfp.bids.length,
   });
+} else {
+  const previous = openBids(previousBids("rfpmart"), "RFPMart");
+  if (previous.length) {
+    packs.push({
+      id: "rfpmart",
+      name: "RFPMart",
+      status: "stale",
+      updated: new Date().toISOString(),
+      reason: "This run did not fetch RFPMart. The previous open notices were kept, and anything due before today was removed.",
+      bids: previous,
+      seen: previous.length,
+    });
+  }
 }
 
 const open = readJson("data/raw/opendata.json");
@@ -65,7 +110,27 @@ if (open?.sources) {
       updated: source.updated,
       reason: source.reason || "",
       bids: bySource.get(source.name) || [],
-      seen: source.count || 0,
+    seen: source.count || 0,
+  });
+  }
+} else {
+  for (const [id, name] of [
+    ["la-ramp", "LA RAMP"],
+    ["delaware", "Delaware Bids"],
+    ["montgomery-md", "Montgomery County MD"],
+    ["baton-rouge", "Baton Rouge Bids"],
+    ["txdot", "TxDOT Lettings"],
+  ]) {
+    const previous = openBids(previousBids(id), name);
+    if (!previous.length) continue;
+    packs.push({
+      id,
+      name,
+      status: "stale",
+      updated: new Date().toISOString(),
+      reason: "This run did not refresh this open-data source. Previous open notices were kept, and anything due before today was removed.",
+      bids: previous,
+      seen: previous.length,
     });
   }
 }
@@ -86,7 +151,7 @@ if (fs.existsSync(platformPath)) {
   }
 }
 
-const all = dedupeBids(packs.flatMap((pack) => pack.bids));
+const all = dedupeBids(packs.flatMap((pack) => pack.bids)).filter((bid) => !isExpired(bid.deadline || bid.due));
 const keptIds = new Set(all.map((bid) => `${bid.source}:${bid.id}`));
 fs.rmSync(shardDir, { recursive: true, force: true });
 fs.mkdirSync(shardDir, { recursive: true });
@@ -129,4 +194,8 @@ const index = {
   shards: shardList,
 };
 fs.writeFileSync(path.join(feedDir, "index.json"), JSON.stringify(index));
-console.log(`feed ${all.length} bids across ${sources.length} sources`);
+console.log("Open bids by source");
+for (const source of sources) {
+  console.log(`${source.count}\t${source.name}\t${source.status}`);
+}
+console.log(`${all.length}\tTOTAL`);

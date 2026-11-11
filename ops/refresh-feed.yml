@@ -5,7 +5,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
-concurrency: refresh-feed
+concurrency:
+  group: refresh-feed
+  cancel-in-progress: false
 jobs:
   collect:
     runs-on: ubuntu-latest
@@ -25,22 +27,36 @@ jobs:
       - name: Collect ${{ matrix.group }}
         run: node scripts/feed/run.mjs ${{ matrix.group }}
         continue-on-error: true
+      - name: Stage outputs outside gitignore
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/out"
+          if [ -d data/raw ]; then
+            mkdir -p "$RUNNER_TEMP/out/raw"
+            cp -a data/raw/. "$RUNNER_TEMP/out/raw/"
+          fi
+          if [ -d data/sources ]; then
+            mkdir -p "$RUNNER_TEMP/out/sources"
+            cp -a data/sources/. "$RUNNER_TEMP/out/sources/"
+          fi
+          if [ -f data/bids.json ]; then cp data/bids.json "$RUNNER_TEMP/out/bids.json"; fi
+          if [ -f data/rfp-bids.json ]; then cp data/rfp-bids.json "$RUNNER_TEMP/out/rfp-bids.json"; fi
+          find "$RUNNER_TEMP/out" -type f -printf '%s %p\n' | sort -n | tail -20
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: feed-${{ matrix.group }}
           if-no-files-found: ignore
-          path: |
-            data/raw
-            data/sources
-            data/bids.json
-            data/rfp-bids.json
+          path: ${{ runner.temp }}/out
   publish:
     needs: collect
     if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -49,22 +65,62 @@ jobs:
           path: /tmp/feed-parts
       - name: Merge collector output and build the feed
         run: |
-          set -u
+          set -euo pipefail
           mkdir -p data/raw data/sources data/feed
-          copy() { src="$1"; dest="$2"; if [ -d "$src" ]; then mkdir -p "$dest"; cp -a "$src"/. "$dest"/; fi; }
-          copy /tmp/feed-parts/feed-sam/data/raw data/raw
-          copy /tmp/feed-parts/feed-sam/data data/tmp-sam
-          if [ -f /tmp/feed-parts/feed-sam/data/bids.json ]; then cp /tmp/feed-parts/feed-sam/data/bids.json data/bids.json; fi
-          if [ -f /tmp/feed-parts/feed-rfpmart/data/rfp-bids.json ]; then cp /tmp/feed-parts/feed-rfpmart/data/rfp-bids.json data/rfp-bids.json; fi
-          copy /tmp/feed-parts/feed-opendata/data/raw data/raw
-          copy /tmp/feed-parts/feed-discover/data/sources data/sources
-          if [ -f /tmp/feed-parts/feed-platforms/data/sources/platform-status.json ]; then
-            cp /tmp/feed-parts/feed-platforms/data/sources/platform-status.json data/sources/platform-status.json
+          copy_dir() {
+            src="$1"
+            dest="$2"
+            if [ -d "$src" ]; then
+              mkdir -p "$dest"
+              cp -a "$src"/. "$dest"/
+            fi
+          }
+          copy_dir /tmp/feed-parts/feed-sam/raw data/raw
+          if [ -f /tmp/feed-parts/feed-sam/bids.json ]; then cp /tmp/feed-parts/feed-sam/bids.json data/bids.json; fi
+          if [ -f /tmp/feed-parts/feed-rfpmart/rfp-bids.json ]; then cp /tmp/feed-parts/feed-rfpmart/rfp-bids.json data/rfp-bids.json; fi
+          copy_dir /tmp/feed-parts/feed-opendata/raw data/raw
+          copy_dir /tmp/feed-parts/feed-discover/sources data/sources
+          if [ -f /tmp/feed-parts/feed-platforms/sources/platform-status.json ]; then
+            mkdir -p data/sources
+            cp /tmp/feed-parts/feed-platforms/sources/platform-status.json data/sources/platform-status.json
           fi
           node scripts/feed/build.mjs
-      - name: Commit the public feed
+          mkdir -p /tmp/published
+          cp -a data/feed /tmp/published/feed
+          cp -a data/sources /tmp/published/sources
+          cp data/bids.json /tmp/published/bids.json
+          if [ -f data/rfp-bids.json ]; then cp data/rfp-bids.json /tmp/published/rfp-bids.json; fi
+      - name: Commit the feed on main
         run: |
-          git config user.name "bid-finder-bot"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B refresh-data origin/main
+          rm -rf data/feed
+          mkdir -p data
+          cp -a /tmp/published/feed data/feed
+          cp -a /tmp/published/sources data/sources
+          cp /tmp/published/bids.json data/bids.json
+          if [ -f /tmp/published/rfp-bids.json ]; then cp /tmp/published/rfp-bids.json data/rfp-bids.json; fi
           git add data/feed data/sources data/bids.json data/rfp-bids.json
-          git diff --cached --quiet && echo "No changes" || (git commit -m "Refresh public bid feed $(date -u +%F)" && git push)
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const index = JSON.parse(fs.readFileSync("data/feed/index.json", "utf8"));
+            const lines = ["Open bids by source", ""];
+            for (const source of index.sources || []) lines.push(`${source.count}\t${source.name}`);
+            lines.push("", `${index.total}\tTOTAL`);
+            fs.writeFileSync("/tmp/feed-counts.txt", lines.join("\n") + "\n");
+            if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+            console.log(lines.join("\n"));
+          '
+          if git diff --cached --quiet; then
+            echo "No data changes. Counts are above."
+          else
+            git config user.name "bid-finder-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -F - <<EOF
+          Refresh public bid feed $(date -u +%F)
+
+          $(cat /tmp/feed-counts.txt)
+          EOF
+            git push origin HEAD:main
+          fi

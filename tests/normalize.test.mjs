@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { isPastDue } from "../assets/deadlines.js";
 import { dedupeBids, isExpired, normalizeBid } from "../scripts/feed/normalize.js";
 import { matchBid } from "../scripts/feed/match.js";
 import fs from "node:fs";
@@ -32,6 +33,9 @@ test("normalize drops expired and foreign notices", () => {
   }, { now: NOW }), null);
   assert.equal(isExpired("2026-10-01", NOW), true);
   assert.equal(isExpired("", NOW), false);
+  assert.equal(isPastDue("2026-11-11T01:00:00-05:00", NOW), false);
+  assert.equal(isPastDue("2026-11-10", NOW), true);
+  assert.equal(isExpired("2026-11-11T01:00:00-05:00", NOW), false);
   assert.equal(normalizeBid({
     id: "ca", title: "Snow clearing", agency: "City of Toronto", place: "Toronto, Ontario, Canada",
     deadline: "2026-12-01", source: "RFPMart", url: "https://www.rfpmart.com/1-toronto.html",
