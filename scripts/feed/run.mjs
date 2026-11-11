@@ -31,13 +31,18 @@ const groups = {
     return run("node", ["scripts/fetch-rfp-bids.js"]);
   },
   async opendata() {
-    return run("node", ["scripts/sources/collect-opendata.mjs"]);
+    const a = await run("node", ["scripts/sources/collect-opendata.mjs"]);
+    const b = await run("node", ["scripts/sources/collect-state-opendata.mjs"]);
+    const c = await run("node", ["scripts/sources/collect-federal.mjs"]);
+    return a || b || c;
   },
   async platforms() {
     return run("node", ["scripts/sources/probe-platforms.mjs"]);
   },
   async discover() {
-    return run("node", ["scripts/sources/discover.mjs"]);
+    const a = await run("node", ["scripts/sources/discover.mjs"]);
+    const b = await run("node", ["scripts/sources/discover-jurisdictions.mjs"]);
+    return a || b;
   },
   async build() {
     return run("node", ["scripts/feed/build.mjs"]);
