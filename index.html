@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>It's Workplace — U.S. contracts for websites, apps, and software</title>
+<title>It's Workplace — public U.S. government bids</title>
 <meta name="description" content="Public United States bid notices from the sources we can read, with a $20 AI draft and optional mailing. Listed by ITS WORKPLACE INC. Not every U.S. bid.">
 <meta name="theme-color" content="#0c2340">
 <link rel="canonical" href="https://8klocal.github.io/bid-finder/">
-<meta property="og:title" content="It's Workplace — U.S. contracts for websites, apps, and software">
+<meta property="og:title" content="It's Workplace — public U.S. government bids">
 <meta property="og:description" content="Every open matching notice from SAM.gov, with a draft you can edit and a simple $29/month Starter plan. ITS WORKPLACE INC.">
 <meta property="og:url" content="https://8klocal.github.io/bid-finder/">
 <meta property="og:type" content="website">
@@ -38,7 +38,7 @@
     </a>
     <nav aria-label="Primary">
       <a href="#bids" data-all-bids>All bids</a>
-      <a href="#bids" data-claimed-view>My claimed bids</a>
+      <a href="#bids" data-claimed-view>My saved bids</a>
       <a href="#how">How it works</a>
       <a href="#pricing">Pricing</a>
       <a class="btn sm" href="#bids" data-all-bids>Browse bids</a>
@@ -50,11 +50,14 @@
   <section class="intro">
     <div class="wrap">
       <p class="eyebrow">Public notices · United States</p>
-      <h1>Open contracts for websites, apps, and software.</h1>
-      <p class="lead">It's Workplace lists public U.S. notices from the sources we can read. Each row links to the original page. Browsing is free. A template opens when you claim a bid. Grok writes a full draft only after you pay $20, and our team reviews it. We never submit it for you.</p>
+      <h1>Open government bids, in every category.</h1>
+      <p class="lead">It's Workplace lists public United States contract notices from the sources we can read. Construction, supplies, services, and software are all in the same list. Browsing is free. Saving a bid keeps it on this device and opens a draft. Grok writes a full draft only after you pay $20, and our team reviews it. We never submit it for you. It's Workplace is our offshore team that runs this business.</p>
       <form class="hero-search" id="hero-search" role="search">
-        <label class="sr-only" for="hero-q">Search bids</label>
-        <input id="hero-q" type="search" placeholder="Search by title, agency, or software work" autocomplete="off">
+        <div class="search-wrap">
+          <label class="sr-only" for="hero-q">Search bids</label>
+          <input id="hero-q" type="search" placeholder="Search by title, agency, city, or keyword" autocomplete="off">
+          <div id="hero-suggest" class="suggest" hidden role="listbox"></div>
+        </div>
         <button class="btn" type="submit">Search bids</button>
       </form>
       <div class="stats" aria-live="polite">
@@ -77,17 +80,20 @@
       <form class="filters" id="filters">
         <label class="field grow">
           <span>Keyword</span>
-          <input id="q" type="search" placeholder="Website, app, software, agency…" autocomplete="off">
+          <span class="search-wrap">
+            <input id="q" type="search" placeholder="Cleaning, agency, city, solicitation…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="q-suggest">
+            <div id="q-suggest" class="suggest" hidden role="listbox"></div>
+          </span>
         </label>
         <label class="field">
           <span>Deadline</span>
           <select id="due">
-            <option value="">Any deadline</option>
-            <option value="3">Due in 3 days</option>
+            <option value="">Any open</option>
+            <option value="today">Due today</option>
             <option value="7">Due in 7 days</option>
-            <option value="14">Due in 14 days</option>
             <option value="30">Due in 30 days</option>
-            <option value="31+">More than 30 days out</option>
+            <option value="later">Due later</option>
+            <option value="none">No deadline listed</option>
           </select>
         </label>
         <label class="field">
@@ -116,7 +122,7 @@
         </label>
         <div class="checks">
           <label class="chk"><input type="checkbox" id="core"> Software, apps, and web NAICS only</label>
-          <label class="chk"><input type="checkbox" id="claimed"> My claimed bids</label>
+          <label class="chk"><input type="checkbox" id="claimed"> My saved bids</label>
           <label class="field email-field">
             <span>Claim notice email (optional)</span>
             <input id="claim-email" type="email" inputmode="email" autocomplete="email" placeholder="name@company.com" spellcheck="false">
@@ -203,12 +209,12 @@
         <article>
           <p class="step">02</p>
           <h3>The whole list, not a teaser</h3>
-          <p>All bids shows every open notice we keep. Filter by keyword, deadline, agency, NAICS, set-aside, or source. My claimed bids shows what you claimed in this browser.</p>
+          <p>All bids shows every open notice we keep, in every category. Filter by keyword, deadline, agency, NAICS, set-aside, or source. My saved bids shows what you saved on this device.</p>
         </article>
         <article>
           <p class="step">03</p>
           <h3>Claim it and fill it out</h3>
-          <p>Claim this bid saves the listing in this browser and opens a draft you can edit, copy, or download. Nothing is sent to a contracting officer unless you submit it yourself.</p>
+          <p>Save to my bids keeps the listing on this device and opens a draft you can edit, copy, or download. Nothing is sent to a contracting officer unless you submit it yourself.</p>
         </article>
       </div>
     </div>
@@ -226,7 +232,7 @@
           <ul>
             <li>Every open bid in the public list</li>
             <li>Keyword, deadline, agency, NAICS, set-aside, and source filters</li>
-            <li>Claim this bid and open a draft in this browser</li>
+            <li>Save to my bids and open a draft on this device</li>
             <li>Direct links to the original notice</li>
           </ul>
           <a class="btn ghost" href="#bids" data-all-bids>Browse all bids</a>
@@ -256,15 +262,24 @@
       <p class="muted" id="coverage-note">Loading the jurisdiction list…</p>
       <div id="coverage-stats" class="stats"></div>
       <p class="muted small">A state, county, or city is covered only when its public bid page was fetched and robots.txt allowed it. This is not 100% of U.S. bids.</p>
+      <p><a href="#past-due">Past due notices from the last 30 days</a></p>
     </div>
   </details>
+  <section id="past-due" class="how">
+    <div class="wrap">
+      <h2>Past due</h2>
+      <p class="muted">These notices closed within the last 30 days, using the Eastern date of the deadline. They are not in the open list.</p>
+      <p class="count" id="past-count">Closed notices load when you open this section.</p>
+      <div id="past-list" class="list"></div>
+    </div>
+  </section>
 </main>
 
 <footer class="foot">
   <div class="wrap">
     <p><strong>It's Workplace</strong> · ITS WORKPLACE INC · <a href="https://itsworkplace.com">itsworkplace.com</a></p>
     <p class="muted small">It's Workplace is our offshore team that runs this business.</p>
-    <p class="muted small">This is a private listing, not a U.S. government website. <a href="legal.html">Sources, payment, mail, and takedown</a>. Always confirm details on the original notice. AI drafts are starting points. A claim stays in this browser until you pay for a written draft or a mailing.</p>
+    <p class="muted small">This is a private listing, not a U.S. government website. <a href="legal.html">Sources, payment, mail, and takedown</a>. <a href="#past-due">Past due, last 30 days</a>. Always confirm details on the original notice. AI drafts are starting points. A saved bid stays on this device until you pay for a written draft or a mailing.</p>
     <p class="muted small">© <span id="yr"></span> ITS WORKPLACE INC</p>
   </div>
 </footer>
@@ -281,7 +296,7 @@
     <dl class="facts" id="bid-facts"></dl>
     <p id="bid-summary"></p>
     <div class="dialog-actions">
-      <button class="btn" type="button" id="bid-dialog-claim">Claim this bid</button>
+      <button class="btn" type="button" id="bid-dialog-claim" title="Saves this bid to My claimed bids on this device. Add your email and our team will reach out to help.">Save to my bids</button>
       <button class="btn" type="button" id="bid-dialog-ai">Fill out with AI, $20</button>
       <a class="btn ghost" id="bid-dialog-original" target="_blank" rel="noopener">Open original notice</a>
     </div>

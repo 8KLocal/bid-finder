@@ -1,6 +1,6 @@
 /** One public-notice shape for every source. Drops non-US and expired rows. */
 
-import { isPastDue } from "../../assets/deadlines.js";
+import { isClosedWithin, isPastDue } from "../../assets/deadlines.js";
 import { looksForeign, stateCode, stateFromPlace } from "./states.js";
 
 export const CANONICAL = ["id", "title", "agency", "state", "naics", "posted", "deadline", "source", "url", "description"];
@@ -43,7 +43,9 @@ export function normalizeBid(raw, opts = {}) {
   parsed.hash = "";
 
   const deadline = String(raw.deadline || raw.due || "").trim();
-  if (isExpired(deadline, opts.now ?? Date.now())) return null;
+  const now = opts.now ?? Date.now();
+  const closed = isExpired(deadline, now);
+  if (closed && !(opts.allowRecentlyClosed && isClosedWithin(deadline, now))) return null;
 
   const place = String(raw.place || "");
   const country = String(raw.country || "");
@@ -83,6 +85,7 @@ export function normalizeBid(raw, opts = {}) {
     category: raw.category || "",
     naicsLabel: raw.naicsLabel || "",
   };
+  if (closed) bid.closed = true;
   return bid;
 }
 

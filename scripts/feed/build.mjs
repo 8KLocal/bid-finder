@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isClosedWithin, isPastDue } from "../../assets/deadlines.js";
 import { dedupeBids, isExpired, normalizeBid } from "./normalize.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -28,8 +29,27 @@ function previousBids(id) {
 }
 
 function openBids(rows, source) {
-  return rows.map((bid) => normalizeBid(bid, { source, state: bid.state, assumeUS: source !== "RFPMart", now })).filter(Boolean);
+  return rows.map((bid) => normalizeBid(bid, { source, state: bid.state, assumeUS: source !== "RFPMart", now, allowRecentlyClosed: true })).filter(Boolean);
 }
+
+function snapshotPrior() {
+  const bids = [];
+  if (fs.existsSync(shardDir)) {
+    for (const file of fs.readdirSync(shardDir)) {
+      if (!file.endsWith(".json")) continue;
+      const doc = JSON.parse(fs.readFileSync(path.join(shardDir, file), "utf8"));
+      for (const bid of doc.bids || []) bids.push(bid);
+    }
+  }
+  const pastFile = path.join(feedDir, "past-due.json");
+  if (fs.existsSync(pastFile)) {
+    const doc = JSON.parse(fs.readFileSync(pastFile, "utf8"));
+    for (const bid of doc.bids || []) bids.push(bid);
+  }
+  return bids;
+}
+
+const prior = snapshotPrior();
 
 const packs = [];
 const sam = readJson("data/raw/sam.json");
@@ -42,7 +62,7 @@ if (sam?.bids) {
     reason: sam.meta?.seen > sam.meta?.count
       ? `Public extract had ${sam.meta.seen} open U.S. notices. Published ${sam.meta.count}, balanced across states, so the site stays within GitHub Pages size.`
       : "Official Contract Opportunities public CSV. All NAICS. United States only.",
-    bids: sam.bids.map((bid) => normalizeBid(bid, { source: "SAM.gov", now })).filter(Boolean),
+    bids: sam.bids.map((bid) => normalizeBid(bid, { source: "SAM.gov", now, allowRecentlyClosed: true })).filter(Boolean),
     seen: sam.meta?.seen || sam.bids.length,
   });
 } else {
@@ -68,7 +88,7 @@ if (sam?.bids) {
 
 const rfp = readJson("data/rfp-bids.json");
 if (rfp?.bids) {
-  const bids = rfp.bids.map((bid) => normalizeBid({ ...bid, source: "RFPMart" }, { source: "RFPMart", now })).filter(Boolean);
+  const bids = rfp.bids.map((bid) => normalizeBid({ ...bid, source: "RFPMart" }, { source: "RFPMart", now, allowRecentlyClosed: true })).filter(Boolean);
   packs.push({
     id: "rfpmart",
     name: "RFPMart",
@@ -98,7 +118,7 @@ function addOpenFile(rel) {
   if (!open?.sources) return false;
   const bySource = new Map();
   for (const bid of open.bids || []) {
-    const normalized = normalizeBid(bid, { source: bid.source, state: bid.state, assumeUS: true, now });
+    const normalized = normalizeBid(bid, { source: bid.source, state: bid.state, assumeUS: true, now, allowRecentlyClosed: true });
     if (!normalized) continue;
     if (!bySource.has(normalized.source)) bySource.set(normalized.source, []);
     bySource.get(normalized.source).push(normalized);
@@ -159,7 +179,25 @@ if (fs.existsSync(platformPath)) {
   }
 }
 
-const all = dedupeBids(packs.flatMap((pack) => pack.bids)).filter((bid) => !isExpired(bid.deadline || bid.due));
+const fresh = dedupeBids(packs.flatMap((pack) => pack.bids));
+const closed = [];
+const open = [];
+for (const bid of fresh) {
+  const value = bid.deadline || bid.due;
+  if (isExpired(value, now) || isPastDue(value, now)) {
+    if (isClosedWithin(value, now)) closed.push({ ...bid, closed: true });
+  } else {
+    open.push(bid);
+  }
+}
+for (const bid of prior) {
+  const value = bid.deadline || bid.due;
+  if (isClosedWithin(value, now)) closed.push({ ...bid, closed: true });
+}
+const pastDue = dedupeBids(closed)
+  .sort((a, b) => String(b.deadline || b.due || "").localeCompare(String(a.deadline || a.due || "")))
+  .slice(0, 2500);
+const all = open;
 const keptIds = new Set(all.map((bid) => `${bid.source}:${bid.id}`));
 fs.rmSync(shardDir, { recursive: true, force: true });
 fs.mkdirSync(shardDir, { recursive: true });
@@ -202,8 +240,17 @@ const index = {
   shards: shardList,
 };
 fs.writeFileSync(path.join(feedDir, "index.json"), JSON.stringify(index));
+fs.writeFileSync(path.join(feedDir, "past-due.json"), JSON.stringify({
+  updated: index.updated,
+  timeZone: "America/New_York",
+  windowDays: 30,
+  total: pastDue.length,
+  note: "Closed notices whose Eastern deadline date is within the last 30 days. They are not in the open list.",
+  bids: pastDue,
+}));
 console.log("Open bids by source");
 for (const source of sources) {
   console.log(`${source.count}\t${source.name}\t${source.status}`);
 }
 console.log(`${all.length}\tTOTAL`);
+console.log(`${pastDue.length}\tPAST DUE (last 30 Eastern days)`);
