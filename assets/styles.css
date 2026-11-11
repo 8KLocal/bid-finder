@@ -90,6 +90,19 @@ p { margin: 0 0 12px; }
 .eyebrow::before { content: ""; width: 10px; height: 10px; background: var(--red); flex: none; }
 .lead { max-width: 62ch; color: var(--muted); font-size: 18px; }
 .hero-search { display: flex; gap: 10px; max-width: 680px; margin: 22px 0 28px; }
+.search-wrap { position: relative; display: block; flex: 1; min-width: 0; }
+.suggest {
+  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px);
+  background: #fff; border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(12, 35, 64, 0.12); overflow: hidden;
+}
+.suggest button {
+  display: block; width: 100%; text-align: left; background: #fff; border: 0;
+  padding: 10px 12px; cursor: pointer; font: 15px/1.4 "Public Sans", sans-serif; color: var(--ink);
+}
+.suggest button:hover, .suggest button:focus { background: #f3f6fa; }
+.hint { margin: 0 0 12px; }
+.hint button { font: inherit; font-weight: 700; background: none; border: 0; color: var(--navy); cursor: pointer; text-decoration: underline; padding: 0; }
 .field input, .field select, textarea, .key-box input, .hero-search input {
   width: 100%; min-height: 44px; padding: 10px 12px;
   border: 1px solid #b7c3d4; border-radius: 8px; background: #fff;
@@ -144,6 +157,7 @@ p { margin: 0 0 12px; }
   background: var(--paper); border: 1px solid var(--line); color: #334155;
 }
 .pill.remote, .pill.claimed { color: var(--ok); border-color: #b7d7c8; background: #f3faf6; }
+.pill.closed { color: var(--red); border-color: #e4c1c6; background: #fdf6f7; font-weight: 700; }
 .pill.claimed { font-weight: 700; }
 .bid.claimed { box-shadow: inset 4px 0 0 var(--ok); }
 .side { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }

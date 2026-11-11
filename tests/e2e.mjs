@@ -125,6 +125,12 @@ const desktop = await evalJs(`(() => {
     checkout: [...document.querySelectorAll("[data-checkout]")].map(el => el.textContent.trim()),
     fill: document.querySelector("[data-ai]")?.textContent.trim() || document.querySelector(".waitlist")?.textContent.trim() || "",
     claim: document.querySelector("[data-claim]")?.textContent.trim() || "",
+    claimTip: document.querySelector("[data-claim]")?.title || "",
+    savedNav: document.querySelector("[data-claimed-view]")?.textContent.trim() || "",
+    deadlines: [...document.querySelectorAll("#due option")].map((option) => option.textContent.trim()),
+    pastDueInNav: /past due/i.test(document.querySelector("nav")?.innerText || ""),
+    pastDueLink: !!document.querySelector('footer a[href="#past-due"]'),
+    hero: document.querySelector("h1")?.textContent || "",
     listUnderFilters: !!(document.querySelector("#filters").compareDocumentPosition(document.querySelector("#list")) & Node.DOCUMENT_POSITION_FOLLOWING) && !document.querySelector("#filters ~ #freshness"),
     sourcesCollapsed: document.querySelector("#coverage")?.tagName === "DETAILS" && !document.querySelector("#coverage").open && !!(document.querySelector("#list").compareDocumentPosition(document.querySelector("#freshness")) & Node.DOCUMENT_POSITION_FOLLOWING),
     mailButton: document.querySelector("#mail-submit")?.textContent.trim() || "",
@@ -151,9 +157,24 @@ const mailingAt = quoteLines.findIndex((line) => line.startsWith("Mailing charge
 const pagesAt = quoteLines.findIndex((line) => line.startsWith("Per-page printing"));
 if (!(postageAt >= 0 && postageAt < mailingAt && mailingAt < pagesAt)) die("quote line order: " + desktop.mailQuote);
 if (!desktop.mailQuote.includes("$5.00")) die("mailing charge is not $5.00");
-if (desktop.claim !== "Claim this bid") die("missing claim action: " + desktop.claim);
+if (desktop.claim !== "Save to my bids") die("missing save action: " + desktop.claim);
+if (desktop.claimTip !== "Saves this bid to My claimed bids on this device. Add your email and our team will reach out to help.") die("save tooltip");
+if (desktop.savedNav !== "My saved bids") die("nav label: " + desktop.savedNav);
+if (desktop.pastDueInNav) die("past due is in the main nav");
+if (!desktop.pastDueLink) die("missing past-due footer link");
+if (!/every category/i.test(desktop.hero)) die("hero is still category-specific: " + desktop.hero);
+if (!desktop.deadlines.includes("Any open") || !desktop.deadlines.includes("Due today") || !desktop.deadlines.includes("No deadline listed") || !desktop.deadlines.includes("Due later")) die("deadline options: " + desktop.deadlines.join(" | "));
 if (!desktop.source) die("missing source filter");
 if (!desktop.checkout.some((label) => label.includes("Continue to checkout"))) die("missing checkout");
+
+await evalJs(`document.querySelector("#q").value = "cleanig"; document.querySelector("#q").dispatchEvent(new Event("input", { bubbles: true }));`);
+await waitFor(`document.querySelector("#count").textContent.includes("of") && document.querySelectorAll("article.bid").length > 0 && /Did you mean/i.test(document.querySelector("#list").innerText)`, "fuzzy search");
+const fuzzy = await evalJs(`document.querySelector("#list").innerText`);
+if (!/clean|janitor|custod/i.test(fuzzy)) die("cleanig did not find cleaning or janitorial notices");
+const suggestOpen = await evalJs(`!document.querySelector("#q-suggest").hidden && document.querySelector("#q-suggest").innerText.length > 0`);
+if (!suggestOpen) die("search suggestions did not open");
+await evalJs(`document.querySelector("#clear").click()`);
+await waitFor(`!document.querySelector("#count").textContent.includes("of")`, "clear fuzzy");
 
 await evalJs(`document.querySelector("#q").value = "software"; document.querySelector("#q").dispatchEvent(new Event("input", { bubbles: true }));`);
 await waitFor("document.querySelector('#count').textContent.includes('of')", "filter count");
@@ -192,7 +213,7 @@ if (!detail.open || !detail.title) die("detail panel did not open");
 if (!detail.hash.startsWith("#bid=")) die("detail is not linkable: " + detail.hash);
 if (!/Agency|Place|Due/.test(detail.facts)) die("detail is missing the notice facts");
 if (detail.summary < 10) die("detail is missing the description");
-if (detail.claim !== "Claim this bid") die("detail claim button");
+if (detail.claim !== "Save to my bids") die("detail save button");
 if (!/Coming online soon/.test(detail.ai)) die("detail should offer the waitlist until the API is configured: " + detail.ai);
 const aiHidden = await evalJs(`document.querySelector("#bid-dialog-ai").hidden === true`);
 if (!aiHidden) die("AI pay button is visible while the API is not configured");
@@ -225,7 +246,7 @@ await shot("desktop-signup.png");
 await evalJs(`document.querySelector("#signup-email").value = "ada@example.com"; document.querySelector("#signup-company").value = "Ada Contracting";`);
 await shot("desktop-signup-filled.png");
 await evalJs(`document.querySelector("#bids").scrollIntoView({ behavior: "instant", block: "start" })`);
-await waitFor(`document.querySelector("[data-claim]").textContent.includes("Claimed")`, "claimed label");
+await waitFor(`document.querySelector("[data-claim]").textContent.includes("Saved")`, "saved label");
 
 await evalJs(`document.querySelector(".waitlist").click()`);
 await waitFor("location.hash === '#alerts' && !document.querySelector('#draft-dialog').open", "waitlist");
@@ -265,6 +286,8 @@ await evalJs(`window.scrollTo(0, 0)`);
 await shot("desktop-top.png");
 await evalJs(`document.querySelector("#pricing").scrollIntoView({ behavior: "instant", block: "start" })`);
 await shot("desktop-pricing.png");
+await evalJs(`document.querySelector('footer a[href="#past-due"]').click()`);
+await waitFor(`document.querySelector("#past-count").textContent.includes("closed") && document.querySelector("#past-due").innerText.includes("not in the open list")`, "past due view");
 const grammar = await evalJs(`[...document.querySelectorAll(".left")].some(el => el.textContent === "1 days left")`);
 if (grammar) die("day count should be singular");
 
