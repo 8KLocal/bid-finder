@@ -116,6 +116,8 @@ const desktop = await evalJs(`(() => {
   const text = document.body.innerText;
   return {
     title: document.title,
+    description: document.querySelector('meta[name="description"]')?.content || "",
+    canonical: document.querySelector('link[rel="canonical"]')?.href || "",
     bids: document.querySelectorAll("article.bid").length,
     total: Number(document.querySelector("#stat-count").textContent.replace(/,/g, "")),
     heading: document.querySelector("#bids h2").textContent,
@@ -143,6 +145,9 @@ const desktop = await evalJs(`(() => {
 console.log("desktop", desktop);
 if (desktop.hasOldBrand) die("old brand is still in the page");
 if (!desktop.title.includes("It's Workplace")) die("title");
+if (!/Federal, state, county, and city/.test(desktop.description)) die("description: " + desktop.description);
+if (!desktop.description.includes("offshore team")) die("description dropped the offshore line");
+if (desktop.canonical !== "https://8klocal.github.io/bid-finder/") die("canonical: " + desktop.canonical);
 if (desktop.heading !== "All bids") die("missing All bids heading");
 if (desktop.coreChecked) die("software filter should be off so All bids is the full list");
 if (desktop.total < 20) die("expected the full matching list, saw " + desktop.total);
@@ -295,6 +300,10 @@ await evalJs(`document.querySelector("#mail-submit").scrollIntoView({ behavior: 
 await shot("mail-quote.png");
 const mailShot = await evalJs(`document.querySelector("#mail-quote-out").innerText.includes("Mailing charge") && document.querySelector("#mail-submit").textContent.includes("Coming online soon")`);
 if (!mailShot) die("mail quote was not on the page");
+const searchLoad = waitEvent(sessionId, "Page.loadEventFired");
+await send("Page.navigate", { url: new URL("?q=cleanig", base).href }, sessionId);
+await searchLoad;
+await waitFor(`document.querySelector("#q").value === "cleanig" && /clean|janitor|custod/i.test(document.querySelector("#list").innerText)`, "search action");
 console.log("e2e ok", desktop.bids, "bids");
 ws.close();
 chrome.kill("SIGKILL");

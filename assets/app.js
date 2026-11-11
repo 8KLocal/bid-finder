@@ -691,6 +691,12 @@ async function init() {
   const coreOnlyUseful = all.some((b) => b.scope === "related");
   $("core").closest("label").hidden = !coreOnlyUseful;
   $("list").removeAttribute("aria-busy");
+  const searchQuery = new URLSearchParams(location.search).get("q");
+  if (searchQuery && searchQuery.trim()) {
+    const text = searchQuery.trim().slice(0, 120);
+    $("q").value = text;
+    if ($("hero-q")) $("hero-q").value = text;
+  }
   render();
   openFromHash();
   if (location.hash === "#past-due") loadPastDue();
