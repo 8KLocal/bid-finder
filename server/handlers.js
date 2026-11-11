@@ -42,7 +42,7 @@ export function publicConfig() {
         : "",
       stripePortalLink: stripeHttps(process.env.STRIPE_PORTAL_LINK, PORTAL_HOSTS),
       checkoutConfigured: Boolean(secret && /^price_/.test(price)),
-      aiConfigured: Boolean(process.env.AI_API_KEY),
+      aiConfigured: Boolean(process.env.XAI_API_KEY || process.env.AI_API_KEY),
     },
   };
 }
@@ -130,7 +130,8 @@ export async function createDraft(bid, fetchImpl = globalThis.fetch) {
   if (!bid || typeof bid !== "object" || !bid.title || !bid.link) {
     return { status: 400, body: { error: "A public notice title and link are required." } };
   }
-  const key = process.env.AI_API_KEY || "";
+  const xai = process.env.XAI_API_KEY || "";
+  const key = xai || process.env.AI_API_KEY || "";
   if (!key) {
     return {
       status: 503,
@@ -140,8 +141,8 @@ export async function createDraft(bid, fetchImpl = globalThis.fetch) {
       },
     };
   }
-  const base = (process.env.AI_API_BASE || "https://api.openai.com/v1").replace(/\/$/, "");
-  const model = process.env.AI_MODEL || "gpt-4o-mini";
+  const base = (xai ? (process.env.XAI_API_BASE || "https://api.x.ai/v1") : (process.env.AI_API_BASE || "https://api.openai.com/v1")).replace(/\/$/, "");
+  const model = xai ? (process.env.XAI_MODEL || "grok-4.7") : (process.env.AI_MODEL || "gpt-4o-mini");
   let endpoint;
   try {
     endpoint = new URL(base + "/chat/completions");

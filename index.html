@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>It's Workplace — U.S. contracts for websites, apps, and software</title>
-<meta name="description" content="Browse open United States government contract opportunities for websites, apps, software, and related remote services. Official SAM.gov notices, listed by ITS WORKPLACE INC.">
+<meta name="description" content="Public United States bid notices from the sources we can read, with a $20 AI draft and optional mailing. Listed by ITS WORKPLACE INC. Not every U.S. bid.">
 <meta name="theme-color" content="#0c2340">
 <link rel="canonical" href="https://8klocal.github.io/bid-finder/">
 <meta property="og:title" content="It's Workplace — U.S. contracts for websites, apps, and software">
@@ -51,7 +51,7 @@
     <div class="wrap">
       <p class="eyebrow">Public notices · United States</p>
       <h1>Open contracts for websites, apps, and software.</h1>
-      <p class="lead">It's Workplace lists open SAM.gov notices and public RFPMart listings. Every row links to the original notice. Browsing is free. Claim a bid and a draft opens here — we never submit it.</p>
+      <p class="lead">It's Workplace lists public U.S. notices from the sources we can read. Each row links to the original page. Browsing is free. A template opens when you claim a bid. Grok writes a full draft only after you pay $20, and our team reviews it. We never submit it for you.</p>
       <form class="hero-search" id="hero-search" role="search">
         <label class="sr-only" for="hero-q">Search bids</label>
         <input id="hero-q" type="search" placeholder="Search by title, agency, or software work" autocomplete="off">
@@ -103,6 +103,10 @@
           <select id="setaside"><option value="">Any set-aside</option></select>
         </label>
         <label class="field">
+          <span>State</span>
+          <select id="state"><option value="">All states</option></select>
+        </label>
+        <label class="field">
           <span>Source</span>
           <select id="source">
             <option value="">All sources</option>
@@ -120,10 +124,79 @@
           <button class="text-btn" type="button" id="clear" hidden>Clear filters</button>
         </div>
       </form>
+      <div id="freshness" class="freshness" aria-label="Source freshness"></div>
       <p class="count" id="count" aria-live="polite"></p>
       <div id="list" class="list" aria-busy="true">
         <p class="empty">Loading the public list…</p>
       </div>
+    </div>
+  </section>
+
+  <section id="coverage" class="how">
+    <div class="wrap">
+      <h2>Coverage</h2>
+      <p class="muted" id="coverage-note">Loading the jurisdiction list…</p>
+      <div id="coverage-stats" class="stats"></div>
+      <p class="muted small">A state, county, or city is covered only when its public bid page was fetched and robots.txt allowed it. Notices below are a separate count. This is not 100% of U.S. bids.</p>
+    </div>
+  </section>
+
+  <section id="alerts" class="how">
+    <div class="wrap">
+      <h2>Email alerts</h2>
+      <p class="muted">Tell us what you want. We send a confirmation first, then a daily or weekly note of new matching bids. Unsubscribe from any message.</p>
+      <form id="signup" class="stack">
+        <label class="field"><span>Email</span><input id="signup-email" type="email" required autocomplete="email"></label>
+        <label class="field"><span>Company</span><input id="signup-company" required maxlength="120"></label>
+        <label class="field"><span>Keywords</span><input id="signup-keywords" placeholder="roof, software, transit"></label>
+        <label class="field"><span>NAICS</span><input id="signup-naics" placeholder="541511, 236220"></label>
+        <label class="field"><span>States</span><input id="signup-states" placeholder="TX, CA"></label>
+        <label class="field"><span>Sources</span><input id="signup-sources" placeholder="SAM.gov, RFPMart"></label>
+        <label class="field"><span>How often</span>
+          <select id="signup-frequency"><option value="daily">Daily</option><option value="weekly">Weekly</option></select>
+        </label>
+        <button class="btn" type="submit">Email me new bids</button>
+        <p class="status" id="signup-status" role="status"></p>
+      </form>
+    </div>
+  </section>
+
+  <section id="mail" class="how">
+    <div class="wrap">
+      <h2>Mail it for me</h2>
+      <p class="muted">Upload a PDF or use the draft you are editing. We quote postage, a per-page amount, and our service fee. Nothing is mailed until Stripe confirms payment.</p>
+      <form id="mail-form" class="stack">
+        <label class="field"><span>PDF packet</span><input id="mail-pdf" type="file" accept="application/pdf"></label>
+        <label class="chk"><input id="mail-use-draft" type="checkbox"> Use the draft open in the editor instead</label>
+        <label class="field"><span>Your email</span><input id="mail-email" type="email" autocomplete="email"></label>
+        <fieldset>
+          <legend>Agency mailing address</legend>
+          <label class="field"><span>Name</span><input id="to-name" autocomplete="name"></label>
+          <label class="field"><span>Street</span><input id="to-line1"></label>
+          <label class="field"><span>Line 2</span><input id="to-line2"></label>
+          <label class="field"><span>City</span><input id="to-city"></label>
+          <label class="field"><span>State</span><input id="to-state" maxlength="20" placeholder="NY"></label>
+          <label class="field"><span>ZIP</span><input id="to-zip" inputmode="numeric" placeholder="10001"></label>
+        </fieldset>
+        <fieldset>
+          <legend>Your return address</legend>
+          <label class="field"><span>Name</span><input id="from-name"></label>
+          <label class="field"><span>Street</span><input id="from-line1"></label>
+          <label class="field"><span>Line 2</span><input id="from-line2"></label>
+          <label class="field"><span>City</span><input id="from-city"></label>
+          <label class="field"><span>State</span><input id="from-state" maxlength="20"></label>
+          <label class="field"><span>ZIP</span><input id="from-zip"></label>
+        </fieldset>
+        <label class="field"><span>Class</span>
+          <select id="mail-class"><option value="firstclass">First-Class</option><option value="certified">Certified</option></select>
+        </label>
+        <label class="chk"><input id="mail-receipt" type="checkbox"> Certified return receipt</label>
+        <button class="btn ghost" type="button" id="mail-quote">Get a quote</button>
+        <p id="mail-quote-out" class="status"></p>
+        <button class="btn" type="submit">Pay and mail</button>
+        <p class="status" id="mail-status" role="status"></p>
+        <p class="muted small">Notarized documents still need a third-party notary before you upload them. We do not guarantee delivery times or a bid award. Deadlines are yours. It's Workplace is our offshore team handling the business.</p>
+      </form>
     </div>
   </section>
 
@@ -134,7 +207,7 @@
         <article>
           <p class="step">01</p>
           <h3>Official notices only</h3>
-          <p>Opportunities come from the SAM.gov Contract Opportunities public extract and from public RFPMart listings, refreshed on a daily schedule. Each bid links to the original notice.</p>
+          <p>Notices come from the public sources listed above, refreshed on a daily schedule. Each bid links to the original notice. We do not claim this is every U.S. bid.</p>
         </article>
         <article>
           <p class="step">02</p>
@@ -173,7 +246,7 @@
           <p class="price">$29<small>/month</small></p>
           <ul>
             <li>Everything in Free</li>
-            <li>Fill this out with AI on any bid</li>
+            <li>Or pay $20 on a single bid for a Grok draft our team reviews</li>
             <li>Edit, copy, or download the draft</li>
             <li>We do not submit it to a government portal</li>
           </ul>
@@ -191,7 +264,7 @@
   <div class="wrap">
     <p><strong>It's Workplace</strong> · ITS WORKPLACE INC · <a href="https://itsworkplace.com">itsworkplace.com</a></p>
     <p class="muted small">It's Workplace is our offshore team that runs this business.</p>
-    <p class="muted small">This is a private listing, not a U.S. government website. Data comes from the SAM.gov Contract Opportunities public extract and from public RFPMart listings. Always confirm details, amendments, and where to submit on the original notice. AI drafts are starting points for your review. A claim stays in this browser.</p>
+    <p class="muted small">This is a private listing, not a U.S. government website. <a href="legal.html">Sources, payment, mail, and takedown</a>. Always confirm details on the original notice. AI drafts are starting points. A claim stays in this browser until you pay for a written draft or a mailing.</p>
     <p class="muted small">© <span id="yr"></span> ITS WORKPLACE INC</p>
   </div>
 </footer>
@@ -208,9 +281,14 @@
     <p class="dialog-bid" id="draft-bid"></p>
     <p class="status" id="claim-note"></p>
     <div id="draft-paywall">
-      <p>Starter is $29/month and unlocks a draft of this notice that you can edit and copy. Checkout is handled by Stripe for It's Workplace. We still will not submit anything for you.</p>
-      <button class="btn" type="button" data-checkout>Continue to checkout</button>
-      <p class="muted small">The draft will include a transmittal, a plain-language reading of the notice, a technical approach, and brackets where your company, staff, and price belong.</p>
+      <p><strong>AI draft, review before submitting.</strong> Writing this bid is $20, charged by Stripe for It's Workplace. Grok runs only after payment is confirmed. Our team reviews the draft. There is no guarantee of an award. It's Workplace is our offshore team handling the business.</p>
+      <label class="field"><span>Email for the draft</span><input id="bid-email" type="email" autocomplete="email"></label>
+      <label class="field"><span>Company</span><input id="bid-company" maxlength="160"></label>
+      <label class="field"><span>Capabilities</span><input id="bid-capabilities" maxlength="800"></label>
+      <label class="field"><span>Past performance you want included</span><input id="bid-past" maxlength="800"></label>
+      <button class="btn" type="button" id="bid-pay">Pay $20 and write this bid</button>
+      <p class="muted small">Starter is still $29/month for the subscription. The $20 charge is per bid.</p>
+      <button class="btn ghost" type="button" data-checkout>Continue to checkout</button>
     </div>
     <div id="draft-editor" hidden>
       <div class="dialog-actions">
@@ -220,17 +298,14 @@
       </div>
       <label class="sr-only" for="draft-text">Response draft</label>
       <textarea id="draft-text" spellcheck="true"></textarea>
+      <p class="ai-note">AI draft, review before submitting.</p>
+      <p class="status" id="draft-progress" role="status"></p>
       <p class="status" id="draft-status" role="status"></p>
       <div id="draft-billing">
         <p class="muted small">Starter is $29/month and is what unlocks model-written drafts once Stripe is connected. You can keep editing this draft either way. Checkout never submits it to a government portal.</p>
         <button class="btn ghost" type="button" data-checkout>Continue to checkout</button>
       </div>
-      <details class="key-box">
-        <summary>Use your own model key</summary>
-        <label for="draft-key">OpenAI-compatible API key</label>
-        <input id="draft-key" type="password" autocomplete="off" placeholder="sk-...  (optional — this browser session only)" spellcheck="false">
-        <p class="muted small">Leave this blank to use the site’s <code>AI_API_KEY</code> when one is configured. A key typed here is sent only to the model endpoint from this browser. It is not stored on our server. If no key is available, you still get a structured draft from the public notice.</p>
-      </details>
+      <p class="muted small">The model key stays on the server. This page never sends <code>XAI_API_KEY</code> to the browser.</p>
     </div>
   </div>
 </dialog>

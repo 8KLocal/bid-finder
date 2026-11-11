@@ -1,0 +1,33 @@
+{
+  "slug": "itsworkplace",
+  "brand": "It's Workplace",
+  "legalName": "ITS WORKPLACE INC",
+  "tagline": "Public U.S. bids, a draft you can pay to have written, and a way to mail the packet.",
+  "logo": "",
+  "colors": {"navy": "#0c2340", "red": "#9b2335", "blue": "#0b4f8a", "paper": "#f4f6f8"},
+  "emailFrom": "It's Workplace",
+  "replyTo": "hello@itsworkplace.com",
+  "address": "ITS WORKPLACE INC, 1261 Broadway, 2FL Suite IT, New York, NY 10001",
+  "offshoreLine": "It's Workplace is our offshore team handling the business.",
+  "siteUrl": "https://itsworkplace.com",
+  "listingsUrl": "https://8klocal.github.io/bid-finder/",
+  "domains": ["8klocal.github.io", "itsworkplace.com"],
+  "apiBase": "",
+  "bidPriceCents": 2000,
+  "stripePaymentLink": "https://buy.stripe.com/7sY8wJ6s67Gn9wF9JW0ZW3k",
+  "defaults": {
+    "keywords": ["software", "website"],
+    "naics": ["541511", "541512", "541519"],
+    "states": [],
+    "sources": ["SAM.gov", "RFPMart"]
+  },
+  "persona": "Write in plain professional American English for a small services firm. Do not invent past performance.",
+  "mail": {
+    "firstClassCents": 78,
+    "certifiedCents": 500,
+    "returnReceiptCents": 250,
+    "perPageCents": 15,
+    "serviceFeeCents": 500
+  },
+  "example": false
+}

@@ -1,6 +1,6 @@
 # It's Workplace — bid listings
 
-Public list of open United States government contracts for websites, apps, software, and related digital or remote services.
+Public list of United States solicitations from the sources this project can read. It is not every open U.S. bid.
 
 **Live:** https://8klocal.github.io/bid-finder/
 
@@ -52,9 +52,15 @@ node scripts/dev-server.mjs
 
 That serves the site and the `/api` routes at http://127.0.0.1:8080
 
+## Coverage, alerts, AI drafts, and mail
+
+`data/sources/registry/` lists Census Vintage 2024 states, counties, incorporated places, and townships, plus a short seeded list of school, university, transit, housing, and utility homepages. `scripts/sources/discover.mjs` checks the next batch of bid URLs (highest population first) and records robots.txt blocks. `data/sources/coverage.json` is the honest covered-versus-listed count. The home page shows it.
+
+`server/` is the PHP API for email alerts, the $20 Grok draft (after a Stripe webhook), and “Mail it for me” (LetterStream, test mode by default). See `server/README.md`. White-label tenants are in `docs/WHITE_LABEL.md`. Sources and the takedown address are on `legal.html`.
+
 ## Daily refresh
 
-`.github/workflows/refresh-bids.yml` runs every day, reruns the SAM.gov fetch, and commits `data/bids.json` when it changes. `.github/workflows/refresh-rfp-bids.yml` does the same for RFPMart on a daily schedule and on manual dispatch. Both use `GITHUB_TOKEN` and need no secrets. Copies live in `ops/`.
+`.github/workflows/refresh-feed.yml` runs every day. It collects SAM.gov, RFPMart, open-data sets, platform robots checks, and the next jurisdiction batch in parallel, then commits `data/feed` and `data/sources`. The older SAM and RFPMart workflows stay as manual runs. None of them need a secret.
 
 GitHub Pages publishes the `main` branch from `/` (see `.nojekyll`). Merging to `main` updates https://8klocal.github.io/bid-finder/
 

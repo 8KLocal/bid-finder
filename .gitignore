@@ -6,3 +6,9 @@ __pycache__/
 node_modules/
 data/bids.json.tmp
 data/rfp-bids.json.tmp
+data/raw/
+server/config/config.php
+server/storage/*.sqlite
+server/storage/*.sqlite-*
+server/storage/uploads/
+server/storage/*.log

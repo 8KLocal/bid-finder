@@ -67,36 +67,49 @@ class ConsiderTests(unittest.TestCase):
         ), NOW)
         self.assertEqual(kept["scope"], "related")
         self.assertTrue(kept["remote"])
-        self.assertIsNone(consider(row(
+        other = consider(row(
             NaicsCode="541990",
             Title="FIRE FIGHTING EQUIPMENT INSPECTIONS",
             Description="Inspect extinguishers at the depot.",
-        ), NOW))
+        ), NOW)
+        self.assertEqual(other["scope"], "general")
+        self.assertEqual(other["source"], "SAM.gov")
+        self.assertEqual(other["state"], "TX")
+        self.assertEqual(other["url"], other["link"])
 
-    def test_marketing_code_without_software_is_out(self):
-        self.assertIsNone(consider(row(
+    def test_non_digital_naics_is_kept_as_general(self):
+        bid = consider(row(
             NaicsCode="541810",
             Title="Advertising campaign",
             Description="Print and outdoor advertising.",
-        ), NOW))
+        ), NOW)
+        self.assertEqual(bid["scope"], "general")
+        self.assertEqual(bid["naics"], "541810")
+
+    def test_notice_without_naics_is_kept(self):
+        bid = consider(row(NaicsCode="", Title="Janitorial services for the courthouse"), NOW)
+        self.assertEqual(bid["scope"], "general")
+        self.assertEqual(bid["naics"], "")
 
     def test_it_token_is_case_sensitive(self):
-        self.assertIsNone(consider(row(
+        plain = consider(row(
             NaicsCode="541990",
             Title="Submit it by Friday",
             Description="A general facilities task. Please submit it on time.",
-        ), NOW))
+        ), NOW)
+        self.assertEqual(plain["scope"], "general")
         kept = consider(row(
             NaicsCode="541611",
             Title="IT support for the public website",
             Description="Information technology help desk.",
         ), NOW)
         self.assertEqual(kept["scope"], "related")
-        self.assertIsNone(consider(row(
+        aircraft = consider(row(
             NaicsCode="541990",
             Title="Aircraft sustainment",
             Description="THIS IS NOT A REQUEST FOR PROPOSAL. IT DOES NOT CONSTITUTE A SOLICITATION. See the program website.",
-        ), NOW))
+        ), NOW)
+        self.assertEqual(aircraft["scope"], "general")
 
     def test_strips_html_from_summary(self):
         bid = consider(row(Description="<p>Software&nbsp;development &amp; hosting</p>"), NOW)

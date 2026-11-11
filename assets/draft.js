@@ -44,7 +44,8 @@ Rules:
 - Use only facts present in the notice. Never invent past performance, certifications, prices, headcount, locations, or security clearances.
 - Where company-specific information is required, insert a bracket placeholder such as [Your legal company name].
 - The first lines must say this is a draft for human review and that it has not been submitted to any government portal.
-- Use these headings, in order: Draft notice, Transmittal, Understanding of the requirement, Technical approach, Relevant experience, Staffing, Schedule, Pricing, Contact, Before you submit.
+- The first line must include: AI draft, review before submitting.
+- Use these headings, in order: Draft notice, Compliance checklist, Transmittal, Understanding of the requirement, Technical approach, Relevant experience, Staffing, Schedule, Pricing, Contact, Before you submit.
 - If the notice is about a website, application, software, hosting, or related remote support, describe an approach that fits that work. If it is about something else, follow the notice instead of forcing a software story.
 - Keep it under 900 words.`;
 
@@ -75,6 +76,11 @@ Set-aside: ${b.setAside || "See the official notice"}
 Response deadline: ${b.dueDisplay}
 ${place}
 Official notice: ${b.link || "[Link]"}
+
+Compliance checklist
+- Confirm the deadline, amendments, set-aside, and where to submit on the official notice.
+- Replace every bracket. Do not invent past performance or a price.
+- AI draft, review before submitting. Payment is not a guarantee of award.
 
 Transmittal
 [Your legal company name] is pleased to offer this draft response to ${agency} for "${b.title || "the referenced requirement"}". This response is contingent on the terms in the official notice dated ${b.posted || "[posted date]"}.

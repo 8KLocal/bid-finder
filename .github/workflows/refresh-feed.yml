@@ -1,0 +1,70 @@
+name: Refresh public bid feed
+on:
+  schedule:
+    - cron: "17 11 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: refresh-feed
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [sam, rfpmart, opendata, platforms, discover]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Collect ${{ matrix.group }}
+        run: node scripts/feed/run.mjs ${{ matrix.group }}
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: feed-${{ matrix.group }}
+          if-no-files-found: ignore
+          path: |
+            data/raw
+            data/sources
+            data/bids.json
+            data/rfp-bids.json
+  publish:
+    needs: collect
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/feed-parts
+      - name: Merge collector output and build the feed
+        run: |
+          set -u
+          mkdir -p data/raw data/sources data/feed
+          copy() { src="$1"; dest="$2"; if [ -d "$src" ]; then mkdir -p "$dest"; cp -a "$src"/. "$dest"/; fi; }
+          copy /tmp/feed-parts/feed-sam/data/raw data/raw
+          copy /tmp/feed-parts/feed-sam/data data/tmp-sam
+          if [ -f /tmp/feed-parts/feed-sam/data/bids.json ]; then cp /tmp/feed-parts/feed-sam/data/bids.json data/bids.json; fi
+          if [ -f /tmp/feed-parts/feed-rfpmart/data/rfp-bids.json ]; then cp /tmp/feed-parts/feed-rfpmart/data/rfp-bids.json data/rfp-bids.json; fi
+          copy /tmp/feed-parts/feed-opendata/data/raw data/raw
+          copy /tmp/feed-parts/feed-discover/data/sources data/sources
+          if [ -f /tmp/feed-parts/feed-platforms/data/sources/platform-status.json ]; then
+            cp /tmp/feed-parts/feed-platforms/data/sources/platform-status.json data/sources/platform-status.json
+          fi
+          node scripts/feed/build.mjs
+      - name: Commit the public feed
+        run: |
+          git config user.name "bid-finder-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/feed data/sources data/bids.json data/rfp-bids.json
+          git diff --cached --quiet && echo "No changes" || (git commit -m "Refresh public bid feed $(date -u +%F)" && git push)

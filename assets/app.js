@@ -1,10 +1,10 @@
-import { fallbackDraft, modelMessages } from "./draft.js";
+import { fallbackDraft } from "./draft.js";
 import { claimPayload, mergeBidLists, safeWebhookUrl } from "./list.js";
+import { bindProduct, loadTenant, payForBid, renderCoverage, renderFreshness } from "./product.js";
 
 const CORE = new Set(["541511", "541512", "541513", "541519", "518210", "511210", "519130"]);
 const DIGITAL = /\b(websites?|web[- ]based|web[- ]apps?|web[- ]applications?|software|saas|mobile apps?|mobile applications?|application development|application software|information technology|information systems?|help[- ]desks?|cybersecurity|cyber security|cloud computing|devops|web hosting|data hosting|programmers?|software developers?|user interface|user experience|sharepoint|servicenow|salesforce|digital services?|computer systems?|custom computer)\b/i;
 const PLAN_KEY = "iw-starter";
-const KEY_SESSION = "iw-model-key";
 const CLAIM_KEY = "iw-claimed-bids";
 const EMAIL_KEY = "iw-claim-email";
 const DAY = 864e5;
@@ -13,9 +13,11 @@ const $ = (id) => document.getElementById(id);
 const fileCfg = window.IW_CONFIG || {};
 
 let cfg = { ...fileCfg };
+let tenant = { slug: "itsworkplace", apiBase: "", bidPriceCents: 2000 };
 let all = [];
 let meta = {};
 let activeBid = null;
+let shown = 40;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -63,9 +65,13 @@ function daysLeft(iso) {
   return (t - Date.now()) / DAY;
 }
 
+function claimStorageKey() {
+  return tenant.slug && tenant.slug !== "itsworkplace" ? `${CLAIM_KEY}:${tenant.slug}` : CLAIM_KEY;
+}
+
 function readClaims() {
   try {
-    const data = JSON.parse(localStorage.getItem(CLAIM_KEY) || "{}");
+    const data = JSON.parse(localStorage.getItem(claimStorageKey()) || "{}");
     return data && typeof data === "object" && !Array.isArray(data) ? data : {};
   } catch { return {}; }
 }
@@ -75,8 +81,10 @@ function claimEmail() {
 }
 
 function stillOpen(b) {
-  const t = new Date(b.due).getTime();
-  if (!b.due || Number.isNaN(t)) return b.source === "RFPMart";
+  const raw = b.deadline || b.due;
+  if (!raw) return true;
+  const t = new Date(raw).getTime();
+  if (Number.isNaN(t)) return true;
   return t > Date.now();
 }
 
@@ -95,8 +103,9 @@ function formatDue(iso) {
 
 /** Older data files have no scope field. Mirror scripts/fetch_bids.py. */
 function inScope(b) {
+  if (b.scope === "general" || b.scope === "core" || b.scope === "related" || b.scope === "rfp") return true;
+  if (b.source && b.source !== "SAM.gov") return true;
   if (b.source === "RFPMart" || b.scope === "rfp") return true;
-  if (b.scope === "core" || b.scope === "related") return true;
   if (b.scope) return false;
   if (CORE.has(b.naics)) return true;
   const text = `${b.title || ""} ${b.summary || ""}`;
@@ -106,7 +115,7 @@ function inScope(b) {
 function filtersActive() {
   return Boolean(
     $("q").value.trim() || $("due").value || $("agency").value ||
-    $("naics").value || $("setaside").value || $("source").value ||
+    $("naics").value || $("setaside").value || $("source").value || $("state").value ||
     $("core").checked || $("claimed").checked
   );
 }
@@ -119,12 +128,14 @@ function filtered() {
   const due = $("due").value;
   const sa = $("setaside").value;
   const source = $("source").value;
+  const state = $("state").value;
   const coreOnly = $("core").checked;
   const claims = readClaims();
   const claimedOnly = $("claimed").checked;
   return all.filter((b) => {
     if (claimedOnly && !claims[b.id]) return false;
     if (source && (b.source || "SAM.gov") !== source) return false;
+    if (state && (b.state || "") !== state) return false;
     if (coreOnly && b.scope !== "core" && !CORE.has(b.naics)) return false;
     if (n && b.naics !== n) return false;
     if (a && b.agency !== a) return false;
@@ -153,8 +164,10 @@ function dueParts(iso) {
   return { cls, due: `Due ${formatDue(iso)}`, left };
 }
 
-function render() {
+function render(resetPage = true) {
+  if (resetPage) shown = 40;
   const rows = filtered();
+  const visible = rows.slice(0, shown);
   const claims = readClaims();
   $("count").textContent = $("claimed").checked
     ? `${rows.length.toLocaleString()} claimed ${rows.length === 1 ? "bid" : "bids"} in this browser`
@@ -170,7 +183,10 @@ function render() {
       : '<p class="empty">No open bids match these filters. Clear them to see the full list.</p>';
     return;
   }
-  list.innerHTML = rows.map((b) => {
+  const more = rows.length > visible.length
+    ? `<p class="more"><button class="btn ghost" type="button" id="more">Show more</button></p>`
+    : "";
+  list.innerHTML = visible.map((b) => {
     const when = dueParts(b.due);
     const claimed = Boolean(claims[b.id]);
     const setAside = b.setAside && b.setAside !== "None"
@@ -182,7 +198,7 @@ function render() {
     const source = b.source || "SAM.gov";
     return `<article class="bid${claimed ? " claimed" : ""}">
       <div>
-        <h3><a href="${esc(b.link)}" target="_blank" rel="noopener">${esc(b.title)}</a></h3>
+        <h3><a href="${esc(b.link || b.url)}" target="_blank" rel="noopener">${esc(b.title)}</a></h3>
         <div class="sub">${esc(who || source)}</div>
         ${b.summary ? `<p class="sum">${esc(b.summary)}</p>` : ""}
         <div class="pills">
@@ -201,10 +217,10 @@ function render() {
         <div class="left">${esc(when.left)}</div>
         <button class="btn${claimed ? " ghost" : ""}" type="button" data-claim="${esc(b.id)}" aria-pressed="${claimed ? "true" : "false"}">${claimed ? "Claimed" : "Claim this bid"}</button>
         <button class="btn ghost" type="button" data-fill="${esc(b.id)}">Fill this out with AI</button>
-        <a class="btn ghost" href="${esc(b.link)}" target="_blank" rel="noopener">Original notice</a>
+        <a class="btn ghost" href="${esc(b.link || b.url)}" target="_blank" rel="noopener">Original notice</a>
       </div>
     </article>`;
-  }).join("");
+  }).join("") + more;
 }
 
 function fillSelect(sel, values, label = (v) => v) {
@@ -224,6 +240,7 @@ function clearFilters() {
   $("naics").value = "";
   $("setaside").value = "";
   $("source").value = "";
+  if ($("state")) $("state").value = "";
   $("core").checked = false;
   $("claimed").checked = false;
   render();
@@ -345,59 +362,14 @@ async function startCheckout(button) {
   }
 }
 
-async function draftWithBrowserKey(bid, apiKey) {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ model: "gpt-4o-mini", temperature: 0.3, messages: modelMessages(bid) }),
-  });
-  const data = await res.json().catch(() => ({}));
-  const text = data.choices?.[0]?.message?.content;
-  if (!res.ok || !text) {
-    throw new Error(data.error?.message || "The model key was rejected.");
-  }
-  return String(text).trim();
-}
-
 async function fillDraft(bid) {
   const status = $("draft-status");
   const text = $("draft-text");
-  text.value = "Preparing a draft from the public notice…";
-  status.textContent = "Working from the official notice fields. Nothing is submitted.";
-  const key = ($("draft-key").value || "").trim();
-  if (key) sessionStorage.setItem(KEY_SESSION, key);
-  if (key) {
-    try {
-      text.value = await draftWithBrowserKey(bid, key);
-      status.textContent = "Draft written with the model key in this browser. Review it, then submit it yourself if you choose to. Nothing was sent to a government portal.";
-      return;
-    } catch (err) {
-      status.textContent = `${err.message} Showing the structured draft instead.`;
-    }
-  }
-  try {
-    const res = await fetch(endpoint(cfg.aiDraftEndpoint || "api/draft"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bid }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.draft) {
-        text.value = data.draft;
-        status.textContent = "Draft written by the configured model from the public notice. It has not been submitted anywhere.";
-        return;
-      }
-    }
-  } catch { /* static host, or the API is not deployed */ }
+  const progress = $("draft-progress");
+  if (progress) progress.textContent = "Reading the public notice…";
   text.value = fallbackDraft(bid);
-  const why = cfg.aiConfigured
-    ? "The draft service did not return a model draft."
-    : "No model key is configured. Set AI_API_KEY on the draft service, or paste a key under “Use your own model key.”";
-  status.textContent = `${why} This structured draft was built in your browser from the public notice and was not sent to a model. Nothing was submitted.`;
+  if (progress) progress.textContent = "Template ready. AI writing waits for payment.";
+  status.textContent = "AI draft, review before submitting. This template was built in your browser from the public notice and was not sent to a model. Nothing was submitted.";
 }
 
 function showDialog(id) {
@@ -411,14 +383,13 @@ function showDialog(id) {
 function openDraft(bid, opts = {}) {
   activeBid = bid;
   $("draft-bid").textContent = bid.title;
-  const locked = !opts.force && stripeReady() && !planActive();
+  const locked = !opts.force;
   const paid = planActive();
   $("draft-paywall").hidden = !locked;
   $("draft-editor").hidden = locked;
   $("draft-billing").hidden = locked || paid;
   $("draft-title").textContent = opts.force ? "Filled-out draft" : "Fill this out with AI";
   $("claim-note").textContent = opts.note || "";
-  $("draft-key").value = sessionStorage.getItem(KEY_SESSION) || "";
   if (!locked) fillDraft(bid);
   showDialog("draft-dialog");
 }
@@ -430,9 +401,9 @@ function claimBid(bid) {
   if (email) localStorage.setItem(EMAIL_KEY, email);
   else localStorage.removeItem(EMAIL_KEY);
   const payload = claimPayload(bid, new Date().toISOString(), email);
-  claims[bid.id] = payload;
-  localStorage.setItem(CLAIM_KEY, JSON.stringify(claims));
-  const webhook = safeWebhookUrl(cfg.claimWebhookUrl);
+  claims[bid.id] = { ...payload, tenant: tenant.slug || "itsworkplace" };
+  localStorage.setItem(claimStorageKey(), JSON.stringify(claims));
+  const webhook = safeWebhookUrl(cfg.claimWebhookUrl || (String(tenant.apiBase || "").startsWith("https://") ? `${String(tenant.apiBase).replace(/\/$/, "")}/api/claim` : ""));
   let note = "Claimed in this browser. Copy or download the draft. Nothing is submitted to a government portal.";
   if (webhook && first) note = "Claimed in this browser. Sending the team notice. Copy or download the draft. Nothing is submitted to a government portal.";
   if (!first) note = "Already claimed in this browser. Copy or download the draft. Nothing is submitted to a government portal.";
@@ -492,16 +463,41 @@ async function applyCheckoutReturn() {
   history.replaceState(null, "", url.pathname + url.search + url.hash);
 }
 
+async function loadPublishedFeed() {
+  const res = await fetch("data/feed/index.json", { cache: "no-cache" });
+  if (!res.ok) return null;
+  const index = await res.json();
+  const parts = await Promise.all((index.shards || []).map(async (file) => {
+    const response = await fetch("data/feed/" + file, { cache: "no-cache" });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.bids || [];
+  }));
+  return { index, bids: parts.flat() };
+}
+
 async function init() {
   $("yr").textContent = new Date().getFullYear();
+  tenant = await loadTenant();
+  bindProduct(tenant);
+  renderCoverage();
   const savedEmail = localStorage.getItem(EMAIL_KEY) || "";
-  if (savedEmail) $("claim-email").value = savedEmail;
+  if (savedEmail && $("claim-email")) $("claim-email").value = savedEmail;
   await loadConfig();
   await applyCheckoutReturn();
   let sam = [];
   let rfp = [];
   let rfpMeta = {};
   let samFailed = false;
+  let feedIndex = null;
+  try {
+    const published = await loadPublishedFeed();
+    if (published && published.bids.length) {
+      feedIndex = published.index;
+      all = published.bids.filter((b) => b && inScope(b) && stillOpen(b));
+    }
+  } catch { /* Fall back to the older JSON files. */ }
+  if (!feedIndex) {
   try {
     const res = await fetch("data/bids.json", { cache: "no-cache" });
     if (!res.ok) throw new Error(String(res.status));
@@ -538,23 +534,31 @@ async function init() {
     if (bOk) return 1;
     return a.title.localeCompare(b.title);
   });
+  }
+  all.sort((a, b) => String(a.deadline || a.due || "9999").localeCompare(String(b.deadline || b.due || "9999")) || String(a.title).localeCompare(String(b.title)));
   $("stat-count").textContent = all.length.toLocaleString();
   $("stat-week").textContent = all.filter((b) => {
-    const d = daysLeft(b.due);
+    const d = daysLeft(b.deadline || b.due);
     return Number.isFinite(d) && d <= 7;
   }).length.toLocaleString();
   $("stat-agencies").textContent = new Set(all.map((b) => b.agency).filter(Boolean)).size.toLocaleString();
-  const updated = meta.updated
-    ? new Date(meta.updated).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York" }) + " ET"
+  const stamp = feedIndex?.updated || meta.updated;
+  const updated = stamp
+    ? new Date(stamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/New_York" }) + " ET"
     : "the latest extract";
-  const samLink = meta.sourceUrl
-    ? `<a href="${esc(meta.sourceUrl)}" target="_blank" rel="noopener">SAM.gov</a>`
-    : "SAM.gov";
   const rfpCount = all.filter((b) => b.source === "RFPMart").length;
-  const rfpLink = `<a href="https://www.rfpmart.com/" target="_blank" rel="noopener">RFPMart</a>`;
-  $("meta").innerHTML = rfpCount
-    ? `Every open listing · ${samLink} · ${rfpLink} (${rfpCount.toLocaleString()}) · updated ${esc(updated)}`
-    : `Every open listing · ${samLink} · updated ${esc(updated)}`;
+  const sourceNames = feedIndex
+    ? (feedIndex.sources || []).map((source) => source.name).filter(Boolean)
+    : [...new Set(all.map((b) => b.source || "SAM.gov"))];
+  const sourceSelect = $("source");
+  sourceSelect.innerHTML = '<option value="">All sources</option>';
+  fillSelect(sourceSelect, [...new Set(sourceNames)]);
+  const stateSelect = $("state");
+  if (stateSelect) fillSelect(stateSelect, [...new Set(all.map((b) => b.state).filter(Boolean))].sort());
+  if (feedIndex) renderFreshness(feedIndex.sources || []);
+  $("meta").textContent = feedIndex
+    ? `${all.length.toLocaleString()} public notices from the sources below · updated ${updated}. This is not every U.S. bid.`
+    : `Public notices · ${updated}. This is not every U.S. bid.`;
   if (rfpMeta.blocked && !rfpCount) {
     showNotice("RFPMart did not return public listings, so All bids is showing SAM.gov notices.", true);
   }
@@ -594,6 +598,7 @@ document.querySelectorAll("[data-claimed-view]").forEach((link) => {
     $("naics").value = "";
     $("setaside").value = "";
     $("source").value = "";
+    if ($("state")) $("state").value = "";
     $("core").checked = false;
     $("claimed").checked = true;
     render();
@@ -610,7 +615,7 @@ $("hero-search").addEventListener("submit", (event) => {
   render();
 });
 
-["q", "naics", "agency", "due", "setaside", "source", "core", "claimed"].forEach((id) => {
+["q", "naics", "agency", "due", "setaside", "source", "state", "core", "claimed"].forEach((id) => {
   $(id).addEventListener("input", render);
 });
 $("claim-email").addEventListener("change", () => {
@@ -620,6 +625,11 @@ $("claim-email").addEventListener("change", () => {
 });
 $("clear").addEventListener("click", clearFilters);
 $("list").addEventListener("click", (event) => {
+  if (event.target.closest("#more")) {
+    shown += 40;
+    render(false);
+    return;
+  }
   const claim = event.target.closest("[data-claim]");
   if (claim) {
     const bid = all.find((b) => b.id === claim.dataset.claim);
@@ -634,6 +644,7 @@ $("list").addEventListener("click", (event) => {
 document.querySelectorAll("[data-checkout]").forEach((button) => {
   button.addEventListener("click", () => startCheckout(button));
 });
+$("bid-pay")?.addEventListener("click", () => { if (activeBid) payForBid(tenant, activeBid); });
 $("draft-close").addEventListener("click", () => $("draft-dialog").close());
 $("checkout-close").addEventListener("click", () => $("checkout-dialog").close());
 $("checkout-dismiss").addEventListener("click", () => $("checkout-dialog").close());
