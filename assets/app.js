@@ -1,3 +1,4 @@
+import { isPastDue } from "./deadlines.js";
 import { fallbackDraft } from "./draft.js";
 import { claimPayload, mergeBidLists, safeWebhookUrl } from "./list.js";
 import { bindProduct, loadTenant, payForBid, renderCoverage, renderFreshness } from "./product.js";
@@ -81,11 +82,7 @@ function claimEmail() {
 }
 
 function stillOpen(b) {
-  const raw = b.deadline || b.due;
-  if (!raw) return true;
-  const t = new Date(raw).getTime();
-  if (Number.isNaN(t)) return true;
-  return t > Date.now();
+  return !isPastDue(b.deadline || b.due);
 }
 
 function phrase(s) {
@@ -140,8 +137,9 @@ function filtered() {
     if (n && b.naics !== n) return false;
     if (a && b.agency !== a) return false;
     if (sa === "__any" ? b.setAside === "None" : sa && b.setAside !== sa) return false;
+    if (!stillOpen(b)) return false;
     if (due) {
-      const d = daysLeft(b.due);
+      const d = daysLeft(b.deadline || b.due);
       if (!Number.isFinite(d)) return false;
       if (due === "31+" ? d <= 30 : d > +due) return false;
     }
@@ -154,9 +152,10 @@ function filtered() {
 }
 
 function dueParts(iso) {
+  if (!iso) return { cls: "", due: "No deadline listed", left: "No deadline listed" };
   const d = daysLeft(iso);
   if (!Number.isFinite(d)) {
-    return { cls: "", due: "Deadline on the notice", left: "See the listing" };
+    return { cls: "", due: "No deadline listed", left: "No deadline listed" };
   }
   const cls = d < 3 ? "soon" : d < 10 ? "mid" : "";
   const whole = Math.floor(d);
@@ -187,7 +186,7 @@ function render(resetPage = true) {
     ? `<p class="more"><button class="btn ghost" type="button" id="more">Show more</button></p>`
     : "";
   list.innerHTML = visible.map((b) => {
-    const when = dueParts(b.due);
+    const when = dueParts(b.deadline || b.due);
     const claimed = Boolean(claims[b.id]);
     const setAside = b.setAside && b.setAside !== "None"
       ? b.setAside.replace(/\s*\(FAR [^)]*\)/, "")

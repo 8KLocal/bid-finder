@@ -1,5 +1,6 @@
 /** One public-notice shape for every source. Drops non-US and expired rows. */
 
+import { isPastDue } from "../../assets/deadlines.js";
 import { looksForeign, stateCode, stateFromPlace } from "./states.js";
 
 export const CANONICAL = ["id", "title", "agency", "state", "naics", "posted", "deadline", "source", "url", "description"];
@@ -19,9 +20,7 @@ export function deadlineMs(value) {
 }
 
 export function isExpired(value, now = Date.now()) {
-  const ms = deadlineMs(value);
-  if (Number.isNaN(ms)) return false;
-  return ms < now;
+  return isPastDue(value, now);
 }
 
 /**

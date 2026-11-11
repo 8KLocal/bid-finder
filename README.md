@@ -60,7 +60,7 @@ That serves the site and the `/api` routes at http://127.0.0.1:8080
 
 ## Daily refresh
 
-`.github/workflows/refresh-feed.yml` runs every day. It collects SAM.gov, RFPMart, open-data sets, platform robots checks, and the next jurisdiction batch in parallel, then commits `data/feed` and `data/sources`. The older SAM and RFPMart workflows stay as manual runs. None of them need a secret.
+`.github/workflows/refresh-feed.yml` is the only refresh. It runs every day at 11:17 UTC, can be started by hand, and commits `data/feed` onto `main` so GitHub Pages republishes. Anything due before today (Eastern time) is removed in that build. The page also hides those notices when it loads, including when a refresh does not run. A notice with no deadline stays and is labeled “No deadline listed.”
 
 GitHub Pages publishes the `main` branch from `/` (see `.nojekyll`). Merging to `main` updates https://8klocal.github.io/bid-finder/
 

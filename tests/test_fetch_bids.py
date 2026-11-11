@@ -59,6 +59,16 @@ class ConsiderTests(unittest.TestCase):
         self.assertIsNone(consider(row(ResponseDeadLine=PAST), NOW))
         self.assertIsNone(consider(row(Active="No"), NOW))
 
+    def test_keeps_a_deadline_earlier_today_and_a_missing_deadline(self):
+        # NOW is 2026-11-10 00:00 UTC, which is still 2026-11-09 in New York.
+        same_day = consider(row(ResponseDeadLine="2026-11-09T08:00:00-05:00"), NOW)
+        self.assertIsNotNone(same_day)
+        self.assertEqual(same_day["deadline"], "2026-11-09T08:00:00-05:00")
+        missing = consider(row(ResponseDeadLine=""), NOW)
+        self.assertIsNotNone(missing)
+        self.assertEqual(missing["deadline"], "")
+        self.assertIsNone(consider(row(ResponseDeadLine="2026-11-08T23:00:00-05:00"), NOW))
+
     def test_related_code_needs_digital_language(self):
         kept = consider(row(
             NaicsCode="541990",
