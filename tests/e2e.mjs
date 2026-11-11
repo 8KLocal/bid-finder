@@ -132,6 +132,7 @@ const desktop = await evalJs(`(() => {
     deadlines: [...document.querySelectorAll("#due option")].map((option) => option.textContent.trim()),
     pastDueInNav: /past due/i.test(document.querySelector("nav")?.innerText || ""),
     pastDueLink: !!document.querySelector('footer a[href="#past-due"]'),
+    howLink: !!document.querySelector('nav a[href="how-it-works.html"]') && !!document.querySelector('footer a[href="how-it-works.html"]'),
     hero: document.querySelector("h1")?.textContent || "",
     listUnderFilters: !!(document.querySelector("#filters").compareDocumentPosition(document.querySelector("#list")) & Node.DOCUMENT_POSITION_FOLLOWING) && !document.querySelector("#filters ~ #freshness"),
     sourcesCollapsed: document.querySelector("#coverage")?.tagName === "DETAILS" && !document.querySelector("#coverage").open && !!(document.querySelector("#list").compareDocumentPosition(document.querySelector("#freshness")) & Node.DOCUMENT_POSITION_FOLLOWING),
@@ -167,6 +168,7 @@ if (desktop.claimTip !== "Saves this bid to My claimed bids on this device. Add 
 if (desktop.savedNav !== "My saved bids") die("nav label: " + desktop.savedNav);
 if (desktop.pastDueInNav) die("past due is in the main nav");
 if (!desktop.pastDueLink) die("missing past-due footer link");
+if (!desktop.howLink) die("missing how-it-works link");
 if (!/every category/i.test(desktop.hero)) die("hero is still category-specific: " + desktop.hero);
 if (!desktop.deadlines.includes("Any open") || !desktop.deadlines.includes("Due today") || !desktop.deadlines.includes("No deadline listed") || !desktop.deadlines.includes("Due later")) die("deadline options: " + desktop.deadlines.join(" | "));
 if (!desktop.source) die("missing source filter");
@@ -304,6 +306,21 @@ const searchLoad = waitEvent(sessionId, "Page.loadEventFired");
 await send("Page.navigate", { url: new URL("?q=cleanig", base).href }, sessionId);
 await searchLoad;
 await waitFor(`document.querySelector("#q").value === "cleanig" && /clean|janitor|custod/i.test(document.querySelector("#list").innerText)`, "search action");
+const howLoad = waitEvent(sessionId, "Page.loadEventFired");
+await send("Page.navigate", { url: new URL("how-it-works.html", base).href }, sessionId);
+await howLoad;
+await waitFor(`document.querySelector("h1") && document.body.innerText.includes("$5 mailing charge") && document.body.innerText.includes("offshore team")`, "how it works");
+await shot("how-it-works.png");
+const howPage = await evalJs(`({
+  title: document.title,
+  scripts: document.scripts.length,
+  award: document.body.innerText.includes("do not guarantee an award"),
+  legal: !!document.querySelector('a[href="legal.html"]'),
+  steps: document.querySelectorAll(".step").length,
+})`);
+if (!howPage.title.includes("How it works and pricing")) die("how page title");
+if (howPage.scripts !== 0) die("how page should not load scripts");
+if (!howPage.award || !howPage.legal || howPage.steps !== 4) die("how page content " + JSON.stringify(howPage));
 console.log("e2e ok", desktop.bids, "bids");
 ws.close();
 chrome.kill("SIGKILL");

@@ -8,4 +8,8 @@
     <loc>https://8klocal.github.io/bid-finder/legal.html</loc>
     <changefreq>monthly</changefreq>
   </url>
+  <url>
+    <loc>https://8klocal.github.io/bid-finder/how-it-works.html</loc>
+    <changefreq>monthly</changefreq>
+  </url>
 </urlset>

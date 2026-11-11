@@ -54,7 +54,25 @@ test("robots.txt and sitemap list only the public pages", () => {
   assert.match(robots, new RegExp(`Sitemap:\\s*${ORIGIN}/sitemap.xml`));
   assert.match(sitemap, new RegExp(`<loc>${ORIGIN}/</loc>`));
   assert.match(sitemap, new RegExp(`<loc>${ORIGIN}/legal.html</loc>`));
-  assert.equal((sitemap.match(/<loc>/g) || []).length, 2);
+  assert.match(sitemap, new RegExp(`<loc>${ORIGIN}/how-it-works.html</loc>`));
+  assert.equal((sitemap.match(/<loc>/g) || []).length, 3);
+});
+
+test("how it works is a static landing page linked from the home nav and footer", () => {
+  const page = fs.readFileSync("how-it-works.html", "utf8");
+  assert.match(home, /<a href="how-it-works.html">How it works and pricing<\/a>/);
+  assert.match(page, /Find open bids/);
+  assert.match(page, /Save bids/);
+  assert.match(page, /\$20/);
+  assert.match(page, /Grok/);
+  assert.match(page, /offshore team/);
+  assert.match(page, /\$5 mailing charge/);
+  assert.match(page, /Where do the bids come from/);
+  assert.match(page, /do not guarantee an award, revenue/);
+  assert.match(page, /href="legal.html"/);
+  assert.doesNotMatch(page, /<script/i);
+  assert.doesNotMatch(page, /google-analytics|googletagmanager|facebook\.net/i);
+  assert.equal(page.match(/<link rel="canonical" href="([^"]+)"/)[1], `${ORIGIN}/how-it-works.html`);
 });
 
 test("the share image is a 1200 by 630 PNG in the repo", () => {
