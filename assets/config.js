@@ -21,7 +21,7 @@ window.IW_CONFIG = {
   // Dashboard → Payment Links → the Starter $29/month price.
   // Success URL: https://8klocal.github.io/bid-finder/?checkout=success
   // Cancel URL:  https://8klocal.github.io/bid-finder/?checkout=cancel#pricing
-  stripePaymentLink: "",
+  stripePaymentLink: "https://buy.stripe.com/7sY8wJ6s67Gn9wF9JW0ZW3k",
 
   // Optional. Required only for the official Stripe Buy Button embed.
   // Example: "pk_live_..." or "pk_test_..."
